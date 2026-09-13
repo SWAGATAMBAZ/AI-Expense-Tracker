@@ -11,6 +11,18 @@ export const MAX_NOTES_LENGTH = 1000;
 
 const MIN_DATE = "2000-01-01";
 
+/**
+ * Checks a yyyy-mm-dd string is a real calendar date, not just a parseable
+ * one — `new Date("2024-02-30T00:00:00Z")` silently rolls over to March 2nd
+ * instead of failing, so `Number.isNaN(date.getTime())` alone doesn't catch
+ * an invalid day-of-month.
+ */
+export function isValidCalendarDateString(value: string): boolean {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.toISOString().slice(0, 10) === value;
+}
+
 /** Parses a user-typed amount string (rupees, e.g. "500" or "500.50") into integer paise. */
 export function parseAmountToPaise(input: string): FieldResult<number> {
   const trimmed = input.trim();
@@ -36,8 +48,7 @@ export function validateTransactionDate(input: string): FieldResult<string> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     return { ok: false, error: "Enter a valid date." };
   }
-  const date = new Date(`${trimmed}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
+  if (!isValidCalendarDateString(trimmed)) {
     return { ok: false, error: "Enter a valid date." };
   }
   if (trimmed < MIN_DATE) {

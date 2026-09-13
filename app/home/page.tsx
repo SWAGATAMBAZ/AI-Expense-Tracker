@@ -20,6 +20,9 @@ export default async function HomePage() {
       <Link href="/transactions" className="text-sm font-medium text-[var(--color-primary)]">
         View your transactions
       </Link>
+      <Link href="/recurring" className="text-sm font-medium text-[var(--color-primary)]">
+        View recurring expenses
+      </Link>
       <Link href="/profile" className="text-sm font-medium text-[var(--color-primary)]">
         View your profile
       </Link>
