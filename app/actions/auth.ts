@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export interface AuthActionState {
@@ -38,9 +38,16 @@ export async function signUp(
   if (password.length < 6) return { error: "Password must be at least 6 characters." };
   if (password !== confirmPassword) return { error: "Passwords do not match." };
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
-  if (error) return { error: friendlyAuthError(error.message) };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error: friendlyAuthError(error.message) };
+  } catch (error) {
+    // redirect()/notFound() work by throwing internally — never swallow those.
+    unstable_rethrow(error);
+    console.error("[signUp] unexpected error:", error);
+    return { error: "Something went wrong. Please try again." };
+  }
 
   redirect("/onboarding");
 }
@@ -54,15 +61,26 @@ export async function signIn(
 
   if (!email || !password) return { error: "Email and password are required." };
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: friendlyAuthError(error.message) };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: friendlyAuthError(error.message) };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[signIn] unexpected error:", error);
+    return { error: "Something went wrong. Please try again." };
+  }
 
   redirect("/"); // middleware bounces to /onboarding if not yet onboarded
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[signOut] unexpected error:", error);
+  }
   redirect("/login");
 }
