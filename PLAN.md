@@ -9,7 +9,7 @@ This plan turns PRD.md into a step-by-step build order. It is optimized for: **f
 For each phase in the roadmap:
 
 1. **Group** — the phase already bundles related PRD features together (done below).
-2. **Spec** — before writing code, create a short spec doc at `specs/phase-N-<name>.md` covering: what's in scope (linking back to the relevant PRD section numbers), data model changes, API/route changes, and explicit non-goals for this phase.
+2. **Spec** — before writing code, create a short spec doc at `.claude/specs/phase-NN-<name>.md` (use `/create-spec <phase number> [name]`) covering: what's in scope (linking back to the relevant PRD section numbers), data model changes, API/route changes, and explicit non-goals for this phase.
 3. **Plan** — a short implementation plan for that spec (files to touch, order of work). For anything non-trivial, do this in Claude Code's plan mode before executing.
 4. **Execute** — implement it.
 5. **Test** — run/extend automated tests for the phase (see §5). Don't move on with a broken build.
