@@ -47,6 +47,10 @@ body {
   @apply w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60;
 }
 
+.btn-danger {
+  @apply w-full rounded-lg bg-[var(--color-danger)] px-4 py-2.5 text-sm font-semibold text-[var(--color-danger-foreground)] transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
 .error-text {
   @apply text-sm text-[var(--color-danger)];
 }

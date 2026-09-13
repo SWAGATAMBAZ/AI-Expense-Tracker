@@ -17,6 +17,9 @@ export default async function HomePage() {
         {user ? `Welcome back, ${displayName}.` : "Welcome."} Dashboard features start in
         Phase 4.
       </p>
+      <Link href="/transactions" className="text-sm font-medium text-[var(--color-primary)]">
+        View your transactions
+      </Link>
       <Link href="/profile" className="text-sm font-medium text-[var(--color-primary)]">
         View your profile
       </Link>
