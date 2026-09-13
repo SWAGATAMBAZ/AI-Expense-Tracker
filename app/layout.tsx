@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "AI Expense Tracker",
@@ -20,15 +23,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0f172a",
+  themeColor: "#4338ca",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="min-h-dvh bg-white text-slate-900 antialiased">
+    <html lang="en" className={inter.variable}>
+      <body className="min-h-dvh bg-[var(--color-surface-muted)] font-sans text-[var(--color-text-primary)] antialiased">
         <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 py-6">
           {children}
         </div>
