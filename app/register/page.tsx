@@ -10,6 +10,23 @@ const initialState: AuthActionState = {};
 export default function RegisterPage() {
   const [state, formAction] = useActionState(signUp, initialState);
 
+  if (state.emailConfirmationRequired) {
+    return (
+      <main className="flex flex-1 flex-col justify-center gap-6">
+        <div className="card flex flex-col items-center gap-3 text-center">
+          <h1 className="text-xl font-semibold tracking-tight">Check your email</h1>
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            We&apos;ve sent a confirmation link to your email address. Click it to activate
+            your account, then log in below.
+          </p>
+          <Link href="/login" className="btn-primary text-center">
+            Go to login
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex flex-1 flex-col justify-center gap-6">
       <div className="text-center">
