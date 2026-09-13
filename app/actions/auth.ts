@@ -20,6 +20,9 @@ function friendlyAuthError(message: string): string {
   if (/rate limit/i.test(message)) {
     return "Too many attempts. Please wait a moment and try again.";
   }
+  if (/email address .* is invalid|email_address_invalid/i.test(message)) {
+    return "That email address can't be used (e.g. test/example addresses are rejected). Please use a real email address.";
+  }
   return "Something went wrong. Please try again.";
 }
 
