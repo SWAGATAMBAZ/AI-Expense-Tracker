@@ -27,10 +27,13 @@ export async function signUp(
   _prev: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
+  const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
+  if (!name) return { error: "Name is required." };
+  if (name.length > 100) return { error: "Name must be 100 characters or fewer." };
   if (!email || !password) return { error: "Email and password are required." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Enter a valid email address." };
@@ -40,7 +43,11 @@ export async function signUp(
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
     if (error) return { error: friendlyAuthError(error.message) };
   } catch (error) {
     // redirect()/notFound() work by throwing internally — never swallow those.
@@ -71,7 +78,7 @@ export async function signIn(
     return { error: "Something went wrong. Please try again." };
   }
 
-  redirect("/"); // middleware bounces to /onboarding if not yet onboarded
+  redirect("/home"); // proxy bounces to /onboarding if not yet onboarded
 }
 
 export async function signOut(): Promise<void> {

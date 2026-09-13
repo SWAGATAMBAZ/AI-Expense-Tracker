@@ -1,22 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import HomePage from "@/app/page";
+import LandingPage from "@/app/page";
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({
-    auth: {
-      getUser: vi.fn(async () => ({ data: { user: { email: "test@example.com" } } })),
-    },
-  })),
-}));
-
-describe("HomePage", () => {
-  it("renders a welcome message including the signed-in user's email", async () => {
-    const ui = await HomePage();
-    render(ui);
+describe("LandingPage", () => {
+  it("renders the headline and both call-to-action links", () => {
+    render(<LandingPage />);
     expect(
       screen.getByRole("heading", { name: /ai expense tracker/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/welcome back, test@example.com/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
+      "href",
+      "/register"
+    );
+    expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute(
+      "href",
+      "/login"
+    );
   });
 });

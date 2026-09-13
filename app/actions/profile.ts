@@ -51,7 +51,7 @@ export async function completeOnboarding(
     return { error: "Something went wrong. Please try again." };
   }
 
-  redirect("/");
+  redirect("/home");
 }
 
 export async function updateProfile(

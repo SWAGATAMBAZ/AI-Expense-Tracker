@@ -4,8 +4,9 @@ export interface ResolveRedirectInput {
   onboardingCompleted: boolean;
 }
 
-const PUBLIC_PATHS = new Set(["/login", "/register"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/register"]);
 const ONBOARDING_PATH = "/onboarding";
+const AUTH_HOME_PATH = "/home";
 
 /** Returns the path to redirect to, or null if the request should proceed unchanged. */
 export function resolveRedirect({
@@ -26,7 +27,7 @@ export function resolveRedirect({
 
   // Authenticated + onboarded.
   if (isPublic || pathname === ONBOARDING_PATH) {
-    return "/";
+    return AUTH_HOME_PATH;
   }
 
   return null;

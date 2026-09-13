@@ -9,8 +9,9 @@ vi.mock("@/app/actions/auth", () => ({
 }));
 
 describe("RegisterPage", () => {
-  it("renders email, password, and confirm password fields", () => {
+  it("renders name, email, password, and confirm password fields", () => {
     render(<RegisterPage />);
+    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
@@ -23,6 +24,9 @@ describe("RegisterPage", () => {
     });
 
     render(<RegisterPage />);
+    fireEvent.change(screen.getByLabelText(/^name$/i), {
+      target: { value: "Jordan Rivera" },
+    });
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "taken@example.com" },
     });

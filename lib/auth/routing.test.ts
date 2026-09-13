@@ -4,6 +4,9 @@ import { resolveRedirect } from "./routing";
 describe("resolveRedirect", () => {
   it("lets a signed-out user reach public paths", () => {
     expect(
+      resolveRedirect({ pathname: "/", isAuthenticated: false, onboardingCompleted: false })
+    ).toBeNull();
+    expect(
       resolveRedirect({ pathname: "/login", isAuthenticated: false, onboardingCompleted: false })
     ).toBeNull();
     expect(
@@ -13,10 +16,10 @@ describe("resolveRedirect", () => {
 
   it("redirects a signed-out user away from protected paths", () => {
     expect(
-      resolveRedirect({ pathname: "/", isAuthenticated: false, onboardingCompleted: false })
+      resolveRedirect({ pathname: "/profile", isAuthenticated: false, onboardingCompleted: false })
     ).toBe("/login");
     expect(
-      resolveRedirect({ pathname: "/profile", isAuthenticated: false, onboardingCompleted: false })
+      resolveRedirect({ pathname: "/home", isAuthenticated: false, onboardingCompleted: false })
     ).toBe("/login");
     expect(
       resolveRedirect({ pathname: "/onboarding", isAuthenticated: false, onboardingCompleted: false })
@@ -34,6 +37,9 @@ describe("resolveRedirect", () => {
       resolveRedirect({ pathname: "/", isAuthenticated: true, onboardingCompleted: false })
     ).toBe("/onboarding");
     expect(
+      resolveRedirect({ pathname: "/home", isAuthenticated: true, onboardingCompleted: false })
+    ).toBe("/onboarding");
+    expect(
       resolveRedirect({ pathname: "/profile", isAuthenticated: true, onboardingCompleted: false })
     ).toBe("/onboarding");
     expect(
@@ -44,21 +50,24 @@ describe("resolveRedirect", () => {
     ).toBe("/onboarding");
   });
 
-  it("redirects a fully onboarded user away from login/register/onboarding", () => {
+  it("redirects a fully onboarded user away from the landing/login/register/onboarding pages", () => {
+    expect(
+      resolveRedirect({ pathname: "/", isAuthenticated: true, onboardingCompleted: true })
+    ).toBe("/home");
     expect(
       resolveRedirect({ pathname: "/login", isAuthenticated: true, onboardingCompleted: true })
-    ).toBe("/");
+    ).toBe("/home");
     expect(
       resolveRedirect({ pathname: "/register", isAuthenticated: true, onboardingCompleted: true })
-    ).toBe("/");
+    ).toBe("/home");
     expect(
       resolveRedirect({ pathname: "/onboarding", isAuthenticated: true, onboardingCompleted: true })
-    ).toBe("/");
+    ).toBe("/home");
   });
 
   it("lets a fully onboarded user reach normal protected paths", () => {
     expect(
-      resolveRedirect({ pathname: "/", isAuthenticated: true, onboardingCompleted: true })
+      resolveRedirect({ pathname: "/home", isAuthenticated: true, onboardingCompleted: true })
     ).toBeNull();
     expect(
       resolveRedirect({ pathname: "/profile", isAuthenticated: true, onboardingCompleted: true })

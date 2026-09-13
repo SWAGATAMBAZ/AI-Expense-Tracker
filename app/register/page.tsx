@@ -21,6 +21,22 @@ export default function RegisterPage() {
 
       <form action={formAction} className="card flex flex-col gap-4">
         <div>
+          <label htmlFor="name" className="label-text">
+            Name
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            maxLength={100}
+            className="input-field"
+            placeholder="Your name"
+          />
+        </div>
+
+        <div>
           <label htmlFor="email" className="label-text">
             Email
           </label>
