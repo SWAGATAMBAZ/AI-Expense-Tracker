@@ -18,7 +18,7 @@ export default async function EditRecurringExpensePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: recurringExpense }, categories] = await Promise.all([
+  const [{ data: recurringExpense, error }, categories] = await Promise.all([
     supabase
       .from("recurring_expenses")
       .select("id, name, amount, frequency, next_due_date, category_id, payment_method, account_info, active")
@@ -28,6 +28,18 @@ export default async function EditRecurringExpensePage({
     getCategories(supabase),
   ]);
 
+  if (error) {
+    console.error("[EditRecurringExpensePage] failed to load recurring expense:", error);
+    return (
+      <main className="flex flex-1 flex-col gap-6 py-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Edit recurring expense</h1>
+        <p className="error-text">Could not load this recurring expense. Please try again.</p>
+        <Link href="/recurring" className="text-sm font-medium text-[var(--color-text-secondary)]">
+          &larr; Back to recurring expenses
+        </Link>
+      </main>
+    );
+  }
   if (!recurringExpense) notFound();
 
   return (

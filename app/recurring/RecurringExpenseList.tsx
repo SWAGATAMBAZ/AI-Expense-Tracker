@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatAmount } from "@/lib/transactions/format";
+import { formatAmount, formatShortDate } from "@/lib/transactions/format";
 import { DeleteRecurringExpenseButton } from "./DeleteRecurringExpenseButton";
 import { ToggleActiveButton } from "./ToggleActiveButton";
 
@@ -16,16 +16,6 @@ export interface RecurringExpenseListItem {
 function categoryName(category: RecurringExpenseListItem["category"]) {
   if (!category) return "Uncategorized";
   return Array.isArray(category) ? (category[0]?.name ?? "Uncategorized") : category.name;
-}
-
-function formatNextDue(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 export function RecurringExpenseList({
@@ -61,7 +51,7 @@ export function RecurringExpenseList({
             <span>&middot;</span>
             <span>{categoryName(expense.category)}</span>
             <span>&middot;</span>
-            <span>Next: {formatNextDue(expense.nextOccurrence)}</span>
+            <span>Next: {formatShortDate(expense.nextOccurrence)}</span>
             <span
               className={`ml-auto rounded-full px-2 py-0.5 text-xs font-medium ${
                 expense.active

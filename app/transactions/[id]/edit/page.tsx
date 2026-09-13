@@ -18,7 +18,7 @@ export default async function EditTransactionPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: transaction }, categories] = await Promise.all([
+  const [{ data: transaction, error }, categories] = await Promise.all([
     supabase
       .from("transactions")
       .select("id, merchant, amount, category_id, transaction_date, payment_method, account_info, type, notes")
@@ -28,6 +28,18 @@ export default async function EditTransactionPage({
     getCategories(supabase),
   ]);
 
+  if (error) {
+    console.error("[EditTransactionPage] failed to load transaction:", error);
+    return (
+      <main className="flex flex-1 flex-col gap-6 py-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Edit transaction</h1>
+        <p className="error-text">Could not load this transaction. Please try again.</p>
+        <Link href="/transactions" className="text-sm font-medium text-[var(--color-text-secondary)]">
+          &larr; Back to transactions
+        </Link>
+      </main>
+    );
+  }
   if (!transaction) notFound();
 
   return (
