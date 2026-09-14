@@ -370,4 +370,52 @@ describe("interpretMessage", () => {
     }
     expect(second.builders.transactions[1].delete).toHaveBeenCalled();
   });
+
+  it("skips the current cycle of a recurring expense without touching other fields", async () => {
+    const { supabase, builders } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [{ data: { currency: "INR" }, error: null }],
+      recurring_expenses: [
+        {
+          data: [
+            { id: "rec-1", name: "Netflix", amount: 649_00, frequency: "monthly", active: true },
+          ],
+          error: null,
+        }, // resolveRecurringTarget
+        {
+          data: {
+            name: "Netflix",
+            amount: 649_00,
+            frequency: "monthly",
+            next_due_date: "2026-10-01",
+            category_id: 2,
+            payment_method: null,
+            account_info: null,
+            active: true,
+          },
+          error: null,
+        }, // fetch existing
+        { data: { id: "rec-1" }, error: null }, // update
+      ],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(
+      llmResponse({
+        action: "edit_recurring_expense",
+        target: { name: "Netflix" },
+        changes: { skip: true },
+      })
+    );
+
+    const result = await interpretMessage("skip netflix this month", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toContain("Skipped this cycle for Netflix");
+      expect(result.text).toContain("Nov");
+    }
+    expect(builders.recurring_expenses[2].update).toHaveBeenCalledWith(
+      expect.objectContaining({ next_due_date: "2026-11-01", amount: 649_00, name: "Netflix" })
+    );
+  });
 });

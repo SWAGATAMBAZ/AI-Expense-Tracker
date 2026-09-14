@@ -10,6 +10,7 @@ import {
   type RecurringExpenseFormInput,
   type RecurringFrequency,
 } from "@/lib/recurring/validation";
+import { skipToNextOccurrence } from "@/lib/recurring/upcoming";
 
 export interface RecurringExpenseRowInput {
   name: string;
@@ -209,6 +210,53 @@ export async function deleteRecurringExpense(id: string): Promise<{ error?: stri
   } catch (error) {
     unstable_rethrow(error);
     console.error("[deleteRecurringExpense] unexpected error:", error);
+    return { error: "Something went wrong. Please try again." };
+  }
+
+  revalidatePath("/recurring");
+  revalidatePath("/home");
+  return {};
+}
+
+export async function skipRecurringExpenseCycle(id: string): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Your session expired. Please log in again." };
+
+    const { data: existing, error: fetchError } = await supabase
+      .from("recurring_expenses")
+      .select("next_due_date, frequency")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[skipRecurringExpenseCycle] supabase error:", fetchError.message);
+      return { error: "Could not update this recurring expense. Please try again." };
+    }
+    if (!existing) return { error: "This recurring expense no longer exists." };
+
+    const nextDueDate = skipToNextOccurrence(
+      existing.next_due_date as string,
+      existing.frequency as RecurringFrequency
+    );
+
+    const { error } = await supabase
+      .from("recurring_expenses")
+      .update({ next_due_date: nextDueDate, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("[skipRecurringExpenseCycle] supabase error:", error.message);
+      return { error: "Could not update this recurring expense. Please try again." };
+    }
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[skipRecurringExpenseCycle] unexpected error:", error);
     return { error: "Something went wrong. Please try again." };
   }
 

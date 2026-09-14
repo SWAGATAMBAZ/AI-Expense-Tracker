@@ -19,6 +19,11 @@ export function computeTotalSpend(transactions: TransactionForAggregate[]): numb
   return Math.max(0, net);
 }
 
+/** Logged income transactions (PRD §19), summed plainly - no netting against spend. */
+export function computeTotalIncome(transactions: TransactionForAggregate[]): number {
+  return transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
+}
+
 export interface CategoryBreakdownItem {
   categoryId: number | null;
   categoryName: string;

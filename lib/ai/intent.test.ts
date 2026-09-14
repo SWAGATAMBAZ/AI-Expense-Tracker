@@ -79,6 +79,31 @@ describe("parseAiIntent", () => {
     });
   });
 
+  it("parses an edit_recurring_expense intent with a skip flag", () => {
+    const result = parseAiIntent({
+      action: "edit_recurring_expense",
+      target: { name: "Netflix" },
+      changes: { skip: true },
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        action: "edit_recurring_expense",
+        target: { mostRecent: undefined, name: "Netflix" },
+        changes: {
+          name: undefined,
+          amount: undefined,
+          frequency: undefined,
+          nextDueDate: undefined,
+          category: undefined,
+          paymentMethod: undefined,
+          active: undefined,
+          skip: true,
+        },
+      },
+    });
+  });
+
   it("rejects a missing action", () => {
     const result = parseAiIntent({ amount: "500" });
     expect(result.ok).toBe(false);

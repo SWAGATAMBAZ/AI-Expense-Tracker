@@ -25,6 +25,17 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain('"merchant":"Zomato"');
     expect(prompt).toContain("amount");
   });
+
+  it("says nothing about currency when none is given", () => {
+    const prompt = buildSystemPrompt({ today: "2026-09-14", categories: [] });
+    expect(prompt).not.toContain("account currency");
+  });
+
+  it("adds a currency-mismatch clarify rule when a currency is given", () => {
+    const prompt = buildSystemPrompt({ today: "2026-09-14", categories: [], currency: "INR" });
+    expect(prompt).toContain("account currency is INR");
+    expect(prompt).toContain("clarify");
+  });
 });
 
 describe("buildMessages", () => {

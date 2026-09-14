@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeTotalSpend,
+  computeTotalIncome,
   computeCategoryBreakdown,
   computePaymentMethodMix,
   computeSavingsForecast,
@@ -35,6 +36,23 @@ describe("computeTotalSpend", () => {
 
   it("returns 0 for no transactions", () => {
     expect(computeTotalSpend([])).toBe(0);
+  });
+});
+
+describe("computeTotalIncome", () => {
+  it("sums income transactions, ignoring everything else", () => {
+    const total = computeTotalIncome([
+      { amount: 5_000_00, type: "income", category_id: null, payment_method: null },
+      { amount: 500_00, type: "expense", category_id: 1, payment_method: "UPI" },
+      { amount: 1_200_00, type: "income", category_id: null, payment_method: null },
+    ]);
+    expect(total).toBe(6_200_00);
+  });
+
+  it("returns 0 for no income transactions", () => {
+    expect(
+      computeTotalIncome([{ amount: 500_00, type: "expense", category_id: 1, payment_method: "UPI" }])
+    ).toBe(0);
   });
 });
 

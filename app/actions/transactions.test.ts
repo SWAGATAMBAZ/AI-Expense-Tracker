@@ -30,6 +30,7 @@ function makeQueryBuilder(result: { data?: unknown; error?: unknown }) {
   builder.insert = vi.fn(async () => result);
   builder.update = vi.fn(() => builder);
   builder.delete = vi.fn(() => builder);
+  builder.then = (resolve: (value: typeof result) => void) => resolve(result);
   return builder;
 }
 
@@ -86,6 +87,34 @@ describe("createTransaction", () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/recurring");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
+  });
+
+  it("still inserts and redirects with a warning flag when a duplicate exists", async () => {
+    let transactionsInsertBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
+    let transactionsCallCount = 0;
+
+    fromImpl = (table: string) => {
+      if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
+      if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
+      if (table === "recurring_expenses") return makeQueryBuilder({ data: [] });
+      if (table === "transactions") {
+        transactionsCallCount++;
+        if (transactionsCallCount === 1) {
+          // findDuplicateTransaction's select().eq()... chain.
+          return makeQueryBuilder({
+            data: [{ id: "txn-existing", merchant: "Zomato", amount: 500_00, transaction_date: "2026-01-01" }],
+          });
+        }
+        transactionsInsertBuilder = makeQueryBuilder({ error: null });
+        return transactionsInsertBuilder;
+      }
+      throw new Error(`unexpected table ${table}`);
+    };
+
+    await expect(createTransaction({}, validFormData())).rejects.toThrow(
+      "REDIRECT:/transactions?duplicateWarning=1"
+    );
+    expect(transactionsInsertBuilder!.insert).toHaveBeenCalled();
   });
 
   it("returns a generic error when the insert fails", async () => {

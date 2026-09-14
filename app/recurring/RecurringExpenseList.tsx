@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatAmount, formatShortDate } from "@/lib/transactions/format";
 import { DeleteRecurringExpenseButton } from "./DeleteRecurringExpenseButton";
 import { ToggleActiveButton } from "./ToggleActiveButton";
+import { SkipCycleButton } from "./SkipCycleButton";
 
 export interface RecurringExpenseListItem {
   id: string;
@@ -70,6 +71,7 @@ export function RecurringExpenseList({
               Edit
             </Link>
             <ToggleActiveButton id={expense.id} active={expense.active} />
+            {expense.active && <SkipCycleButton id={expense.id} />}
             <DeleteRecurringExpenseButton id={expense.id} />
           </div>
         </li>

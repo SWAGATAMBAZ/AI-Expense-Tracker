@@ -70,6 +70,18 @@ function isWithinWindow(candidate: RecurringMatchCandidate, transaction: Transac
   return Math.abs(daysBetween(occurrence, transaction.date)) <= WINDOW_DAYS[candidate.frequency];
 }
 
+/**
+ * How much an amount can differ and still count as "the same bill" - covers
+ * small provider-side fee/tax drift between cycles without opening the door
+ * to matching an unrelated transaction. Fixed floor keeps small bills exact
+ * enough; the percentage keeps large bills from needing an unreasonably
+ * tight fixed tolerance.
+ */
+function isWithinAmountTolerance(candidate: RecurringMatchCandidate, transaction: TransactionForMatching): boolean {
+  const tolerance = Math.max(10_00, Math.round(candidate.amount * 0.01));
+  return Math.abs(candidate.amount - transaction.amountPaise) <= tolerance;
+}
+
 function hasCorroboratingSignal(
   candidate: RecurringMatchCandidate,
   transaction: TransactionForMatching
@@ -102,7 +114,7 @@ export function findMatchingRecurringExpense(
 
   const matches = candidates.filter(
     (candidate) =>
-      candidate.amount === transaction.amountPaise &&
+      isWithinAmountTolerance(candidate, transaction) &&
       isWithinWindow(candidate, transaction) &&
       hasCorroboratingSignal(candidate, transaction)
   );

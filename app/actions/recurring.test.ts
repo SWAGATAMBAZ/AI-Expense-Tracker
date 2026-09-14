@@ -30,6 +30,7 @@ function makeQueryBuilder(result: { data?: unknown; error?: unknown }) {
   builder.insert = vi.fn(async () => result);
   builder.update = vi.fn(() => builder);
   builder.delete = vi.fn(() => builder);
+  builder.then = (resolve: (value: typeof result) => void) => resolve(result);
   return builder;
 }
 
@@ -47,6 +48,7 @@ import {
   updateRecurringExpense,
   deleteRecurringExpense,
   toggleRecurringExpenseActive,
+  skipRecurringExpenseCycle,
 } from "./recurring";
 
 const validFormData = () => {
@@ -168,6 +170,48 @@ describe("toggleRecurringExpenseActive", () => {
     fromImpl = () => makeQueryBuilder({ error: { message: "boom" } });
 
     const result = await toggleRecurringExpenseActive("rec-1", true);
+    expect(result.error).toBe("Could not update this recurring expense. Please try again.");
+  });
+});
+
+describe("skipRecurringExpenseCycle", () => {
+  it("advances next_due_date by one cycle and revalidates", async () => {
+    let updateBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
+    let callCount = 0;
+
+    fromImpl = (table: string) => {
+      if (table !== "recurring_expenses") throw new Error(`unexpected table ${table}`);
+      callCount++;
+      if (callCount === 1) {
+        return makeQueryBuilder({
+          data: { next_due_date: "2026-02-01", frequency: "monthly" },
+          error: null,
+        });
+      }
+      updateBuilder = makeQueryBuilder({ error: null });
+      return updateBuilder;
+    };
+
+    const result = await skipRecurringExpenseCycle("rec-1");
+    expect(result).toEqual({});
+    expect(updateBuilder!.update).toHaveBeenCalledWith(
+      expect.objectContaining({ next_due_date: "2026-03-01" })
+    );
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/recurring");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
+  });
+
+  it("returns 'no longer exists' when the row doesn't match", async () => {
+    fromImpl = () => makeQueryBuilder({ data: null, error: null });
+
+    const result = await skipRecurringExpenseCycle("rec-1");
+    expect(result.error).toBe("This recurring expense no longer exists.");
+  });
+
+  it("returns a generic error when the fetch fails", async () => {
+    fromImpl = () => makeQueryBuilder({ error: { message: "boom" } });
+
+    const result = await skipRecurringExpenseCycle("rec-1");
     expect(result.error).toBe("Could not update this recurring expense. Please try again.");
   });
 });

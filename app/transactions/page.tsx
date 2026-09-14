@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TransactionList, type TransactionListItem } from "./TransactionList";
 
-export default async function TransactionsPage() {
+export default async function TransactionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const showDuplicateWarning = params.duplicateWarning === "1";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,6 +36,13 @@ export default async function TransactionsPage() {
           + Add
         </Link>
       </div>
+
+      {showDuplicateWarning && (
+        <p className="card border-[color-mix(in_srgb,var(--color-warning)_25%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-warning)_8%,white)] text-sm text-[var(--color-warning)]">
+          This looks like a duplicate of an existing transaction — we added it anyway. Check below if
+          that wasn&apos;t intended.
+        </p>
+      )}
 
       {error ? (
         <p className="error-text">Could not load your transactions. Please try again.</p>
