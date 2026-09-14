@@ -36,6 +36,11 @@ describe("advanceDueDate", () => {
     // 2032 is the next leap year after 2028 - checked before that date arrives, so it lands there unclamped.
     expect(advanceDueDate("2028-02-29", "yearly", "2032-01-01")).toBe("2032-02-29");
   });
+
+  it("handles a due date many years in the past without excessive iteration (closed-form jump)", () => {
+    expect(advanceDueDate("2000-01-15", "monthly", "2026-06-01")).toBe("2026-06-15");
+    expect(advanceDueDate("2000-01-15", "yearly", "2026-06-01")).toBe("2027-01-15");
+  });
 });
 
 describe("getUpcomingSpend", () => {

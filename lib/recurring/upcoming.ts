@@ -35,10 +35,10 @@ export function advanceDueDate(
   if (date >= referenceToday) return date;
 
   const { year, month, day } = parseDate(date);
+  const ref = parseDate(referenceToday);
 
   if (frequency === "weekly") {
     const start = Date.UTC(year, month, day);
-    const ref = parseDate(referenceToday);
     const today = Date.UTC(ref.year, ref.month, ref.day);
     const diffDays = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
     const cycles = Math.ceil(diffDays / 7);
@@ -47,7 +47,11 @@ export function advanceDueDate(
   }
 
   if (frequency === "monthly") {
-    let cycleCount = 0;
+    // Jump close to the target with a direct calculation, then correct by a
+    // small bounded loop for day-of-month clamping at the boundary, instead
+    // of always starting from cycle 0 (which is O(months since due)).
+    const monthsDiff = (ref.year - year) * 12 + (ref.month - month);
+    let cycleCount = Math.max(0, monthsDiff - 1);
     while (true) {
       const totalMonths = month + cycleCount;
       const candidateYear = year + Math.floor(totalMonths / 12);
@@ -59,8 +63,8 @@ export function advanceDueDate(
     }
   }
 
-  // yearly
-  let cycleCount = 0;
+  // yearly - same direct-jump-then-correct approach.
+  let cycleCount = Math.max(0, ref.year - year - 1);
   while (true) {
     const candidateYear = year + cycleCount;
     const candidateDay = Math.min(day, daysInMonth(candidateYear, month));
