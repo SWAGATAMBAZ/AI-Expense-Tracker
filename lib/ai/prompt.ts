@@ -5,6 +5,7 @@ export interface PromptContext {
   categories: readonly string[];
   pendingIntent?: AiIntent | null;
   missingFields?: readonly string[];
+  currency?: string;
 }
 
 const TRANSACTION_TYPES = ["expense", "income", "refund", "transfer"];
@@ -29,14 +30,22 @@ export function buildSystemPrompt(context: PromptContext): string {
     `{"action":"delete_transaction","target":{"mostRecent":true,"merchant":"Zomato"},"confirmed":false}`,
     `{"action":"add_recurring_expense","name":"Netflix","amount":"649","frequency":"monthly","nextDueDate":"2026-10-01","category":"Subscriptions"}`,
     `{"action":"edit_recurring_expense","target":{"name":"Netflix"},"changes":{"amount":"699","active":true}}`,
+    `{"action":"edit_recurring_expense","target":{"name":"Netflix"},"changes":{"skip":true}}`,
     `{"action":"clarify","question":"How much did you spend?"}`,
     `{"action":"unknown"}`,
+    `Use "changes":{"skip":true} on edit_recurring_expense when the user wants to skip the upcoming/current cycle of a recurring bill (e.g. "skip Netflix this month") without recording a transaction - do not combine "skip" with other change fields in the same message.`,
     `Rules: "target" fields are hints to find an EXISTING row, never a database ID - only fill in what the user actually said (merchant/amount/date/name), and set "mostRecent":true for phrases like "the last one"/"that one". Only include "changes"/fields you can infer; omit fields you don't know rather than guessing.`,
     `IMPORTANT: if the message clearly describes ONE action (e.g. an expense, a recurring bill) but is missing a detail like the amount, DO NOT use "clarify" - instead emit that action's normal JSON shape with only the fields you're confident about, omitting what's missing (e.g. {"action":"add_transaction","merchant":"BigBasket","category":"Groceries"} with no "amount"). The app will ask the user for the missing piece itself. Only use "clarify" when the message is genuinely ambiguous about WHICH action is meant, or a delete needs confirmation. If the message is unrelated to money/expenses, use "unknown".`,
     buildPendingIntentNote(context),
+    buildCurrencyNote(context),
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function buildCurrencyNote(context: PromptContext): string {
+  if (!context.currency) return "";
+  return `The user's account currency is ${context.currency}. If the message implies a different currency (e.g. names another currency or symbol), do NOT convert or assume - use "clarify" to ask which amount/currency they mean.`;
 }
 
 function buildPendingIntentNote(context: PromptContext): string {

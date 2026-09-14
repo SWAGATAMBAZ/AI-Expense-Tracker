@@ -68,6 +68,7 @@ export interface RecurringExpenseChanges {
   category?: string;
   paymentMethod?: string;
   active?: boolean;
+  skip?: boolean;
 }
 
 export interface EditRecurringExpenseIntent {
@@ -222,6 +223,7 @@ export function parseAiIntent(raw: unknown): ParseIntentResult {
             category: asOptionalString(changesRaw.category),
             paymentMethod: asOptionalString(changesRaw.paymentMethod),
             active: asOptionalBool(changesRaw.active),
+            skip: asOptionalBool(changesRaw.skip),
           },
         },
       };

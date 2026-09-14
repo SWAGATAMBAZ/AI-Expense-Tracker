@@ -8,7 +8,7 @@ import { formatAmount, formatShortDate } from "@/lib/transactions/format";
 import { callOpenRouter } from "@/lib/ai/openrouter";
 import { buildMessages } from "@/lib/ai/prompt";
 import { parseAiIntent, matchCategoryId, type AiIntent } from "@/lib/ai/intent";
-import { findDuplicateTransaction } from "@/lib/ai/duplicate";
+import { findDuplicateTransaction } from "@/lib/transactions/duplicate";
 import { resolveTransactionTarget, resolveRecurringTarget } from "@/lib/ai/resolveTarget";
 import {
   parseAmountToPaise,
@@ -21,6 +21,7 @@ import {
 import { validateName, validateFrequency, validateNextDueDate } from "@/lib/recurring/validation";
 import { insertTransactionRow, updateTransactionRow, deleteTransaction } from "./transactions";
 import { insertRecurringExpenseRow, updateRecurringExpenseRow } from "./recurring";
+import { skipToNextOccurrence } from "@/lib/recurring/upcoming";
 
 export interface PendingIntent {
   intent: AiIntent;
@@ -76,6 +77,7 @@ export async function interpretMessage(
       categories: categories.map((c) => c.name),
       pendingIntent: pending?.intent ?? null,
       missingFields: pending?.missingFields,
+      currency,
     })
   );
   if (!llmResult.ok) return { kind: "error", text: UNAVAILABLE_MESSAGE };
@@ -402,6 +404,35 @@ async function handleEditRecurringExpense(
   }
 
   const changes = intent.changes;
+
+  // "skip" is a standalone action (PRD §19), not composable with other edits
+  // in the same message.
+  if (changes.skip) {
+    const nextDueDate = skipToNextOccurrence(
+      existing.next_due_date as string,
+      existing.frequency
+    );
+    const result = await updateRecurringExpenseRow(supabase, targetId, userId, {
+      name: existing.name,
+      amountPaise: existing.amount,
+      frequency: existing.frequency,
+      nextDueDate,
+      categoryId: existing.category_id,
+      paymentMethod: existing.payment_method,
+      accountInfo: existing.account_info,
+      active: existing.active,
+    });
+    if (result.error) return { kind: "error", text: result.error };
+
+    revalidatePath("/recurring");
+    revalidatePath("/home");
+    return {
+      kind: "confirmation",
+      text: `Skipped this cycle for ${existing.name}. Next due: ${formatShortDate(nextDueDate)}.`,
+      href: "/recurring",
+    };
+  }
+
   const nameResult = changes.name !== undefined ? validateName(changes.name) : null;
   const amountResult = changes.amount !== undefined ? parseAmountToPaise(changes.amount) : null;
   const frequencyResult = changes.frequency !== undefined ? validateFrequency(changes.frequency) : null;

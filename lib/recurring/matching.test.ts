@@ -62,6 +62,48 @@ describe("findMatchingRecurringExpense", () => {
     expect(result).toBeNull();
   });
 
+  it("matches within the amount tolerance (max of ₹10 or 1%)", () => {
+    // Rent ₹20,000: 1% tolerance is ₹200, wider than the ₹10 floor.
+    const justInside = findMatchingRecurringExpense([rent], {
+      amountPaise: 20_200_00,
+      date: "2026-09-28",
+      type: "expense",
+      merchant: "Landlord",
+      categoryId: 9,
+    });
+    expect(justInside?.id).toBe("rec-rent");
+
+    const justOutside = findMatchingRecurringExpense([rent], {
+      amountPaise: 20_201_00,
+      date: "2026-09-28",
+      type: "expense",
+      merchant: "Landlord",
+      categoryId: 9,
+    });
+    expect(justOutside).toBeNull();
+  });
+
+  it("falls back to the ₹10 floor when 1% would be smaller", () => {
+    // Netflix ₹649: 1% (~₹6.49) is under the ₹10 floor, so ₹10 applies.
+    const justInside = findMatchingRecurringExpense([netflix], {
+      amountPaise: 659_00,
+      date: "2026-10-01",
+      type: "expense",
+      merchant: "NETFLIX.COM",
+      categoryId: 14,
+    });
+    expect(justInside?.id).toBe("rec-netflix");
+
+    const justOutside = findMatchingRecurringExpense([netflix], {
+      amountPaise: 660_00,
+      date: "2026-10-01",
+      type: "expense",
+      merchant: "NETFLIX.COM",
+      categoryId: 14,
+    });
+    expect(justOutside).toBeNull();
+  });
+
   it("does not match without any corroborating signal", () => {
     const result = findMatchingRecurringExpense([rent], {
       amountPaise: 20_000_00,

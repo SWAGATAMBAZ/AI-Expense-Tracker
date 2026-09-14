@@ -16,6 +16,7 @@ import {
   type RecurringMatchCandidate,
 } from "@/lib/recurring/matching";
 import type { RecurringFrequency } from "@/lib/recurring/validation";
+import { findDuplicateTransaction } from "@/lib/transactions/duplicate";
 
 export interface TransactionRowInput {
   merchant: string | null;
@@ -177,6 +178,7 @@ export async function createTransaction(
   _prev: TransactionActionState,
   formData: FormData
 ): Promise<TransactionActionState> {
+  let isDuplicate = false;
   try {
     const supabase = await createClient();
     const {
@@ -192,6 +194,17 @@ export async function createTransaction(
       validCategoryIds: categories.map((c) => c.id),
     });
     if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+    // PRD §17/§19: manual entry is deliberate, so a duplicate is inserted
+    // anyway - the user is only warned, not blocked, unlike the AI chat's
+    // skip-and-inform behavior.
+    isDuplicate =
+      (await findDuplicateTransaction(supabase, user.id, {
+        amountPaise: parsed.value.amountPaise,
+        date: parsed.value.date,
+        type: parsed.value.type,
+        merchant: parsed.value.merchant,
+      })) != null;
 
     const { error } = await insertTransactionRow(supabase, user.id, {
       merchant: parsed.value.merchant,
@@ -217,7 +230,7 @@ export async function createTransaction(
   revalidatePath("/transactions");
   revalidatePath("/recurring");
   revalidatePath("/home");
-  redirect("/transactions");
+  redirect(isDuplicate ? "/transactions?duplicateWarning=1" : "/transactions");
 }
 
 export async function updateTransaction(

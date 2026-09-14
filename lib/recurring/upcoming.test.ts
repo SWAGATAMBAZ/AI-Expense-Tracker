@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceDueDate, getUpcomingSpend } from "./upcoming";
+import { advanceDueDate, getUpcomingSpend, skipToNextOccurrence } from "./upcoming";
 
 describe("advanceDueDate", () => {
   it("returns the same date when it's today or in the future", () => {
@@ -87,5 +87,21 @@ describe("getUpcomingSpend", () => {
 
   it("returns an empty result for no active expenses", () => {
     expect(getUpcomingSpend([], "2026-01-01")).toEqual({ items: [], total: 0 });
+  });
+});
+
+describe("skipToNextOccurrence", () => {
+  it("advances a monthly due date to the following month", () => {
+    expect(skipToNextOccurrence("2026-01-15", "monthly")).toBe("2026-02-15");
+  });
+
+  it("advances a weekly due date to the following week", () => {
+    expect(skipToNextOccurrence("2026-01-01", "weekly")).toBe("2026-01-08");
+  });
+
+  it("advances an overdue due date to the next occurrence after today, not just one cycle past the stale date", () => {
+    // Due 2025-01-01 monthly, long overdue - skipping should still land on the
+    // single next occurrence after the due date, per advanceDueDate's contract.
+    expect(skipToNextOccurrence("2025-01-01", "monthly")).toBe("2025-02-01");
   });
 });

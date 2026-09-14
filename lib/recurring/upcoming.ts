@@ -74,6 +74,26 @@ export function advanceDueDate(
   }
 }
 
+function parseUTC(date: string): number {
+  const [year, month, day] = date.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(parseUTC(date) + days * 24 * 60 * 60 * 1000);
+  return formatDate(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/**
+ * The next_due_date to persist when a user explicitly skips the current
+ * cycle (PRD §19) rather than settling it with a transaction - always moves
+ * at least one full cycle past whatever `nextDueDate` currently is, even if
+ * it's overdue.
+ */
+export function skipToNextOccurrence(nextDueDate: string, frequency: RecurringFrequency): string {
+  return advanceDueDate(nextDueDate, frequency, addDays(nextDueDate, 1));
+}
+
 export interface RecurringExpenseInput {
   id: string;
   name: string;

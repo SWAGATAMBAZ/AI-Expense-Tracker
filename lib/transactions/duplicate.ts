@@ -15,10 +15,10 @@ export interface DuplicateMatch {
 }
 
 /**
- * PRD §17 duplicate detection for chat/AI-originated transactions only.
- * Exact-match on date+amount+type (chat entries are always "now", unlike
- * SMS timing fuzziness which is Phase 7's problem), plus a case-insensitive
- * merchant match when the candidate has a merchant.
+ * PRD §17 duplicate detection, shared by manual entry and AI chat.
+ * Exact-match on date+amount+type (SMS timing fuzziness is Phase 7's
+ * problem, still deferred), plus a case-insensitive merchant match when
+ * the candidate has a merchant.
  */
 export async function findDuplicateTransaction(
   supabase: SupabaseClient,

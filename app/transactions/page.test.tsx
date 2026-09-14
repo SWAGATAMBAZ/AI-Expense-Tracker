@@ -51,7 +51,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 describe("TransactionsPage", () => {
   it("renders every transaction belonging to the signed-in user", async () => {
-    const ui = await TransactionsPage();
+    const ui = await TransactionsPage({ searchParams: Promise.resolve({}) });
     render(ui);
 
     expect(screen.getByText("Zomato")).toBeInTheDocument();
@@ -62,5 +62,19 @@ describe("TransactionsPage", () => {
       "href",
       "/transactions/new"
     );
+  });
+
+  it("shows a duplicate-warning banner when the search param is present", async () => {
+    const ui = await TransactionsPage({ searchParams: Promise.resolve({ duplicateWarning: "1" }) });
+    render(ui);
+
+    expect(screen.getByText(/looks like a duplicate/i)).toBeInTheDocument();
+  });
+
+  it("does not show a duplicate-warning banner otherwise", async () => {
+    const ui = await TransactionsPage({ searchParams: Promise.resolve({}) });
+    render(ui);
+
+    expect(screen.queryByText(/looks like a duplicate/i)).not.toBeInTheDocument();
   });
 });

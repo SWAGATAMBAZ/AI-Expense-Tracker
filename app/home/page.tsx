@@ -5,6 +5,7 @@ import { getUpcomingSpend, type RecurringExpenseInput } from "@/lib/recurring/up
 import type { RecurringFrequency } from "@/lib/recurring/validation";
 import {
   computeTotalSpend,
+  computeTotalIncome,
   computeCategoryBreakdown,
   computePaymentMethodMix,
   computeSavingsForecast,
@@ -143,8 +144,15 @@ export default async function HomePage({
     .filter((item) => item.nextOccurrence <= currentMonthRange.end)
     .reduce((sum, item) => sum + item.amount, 0);
 
+  // Logged income transactions (PRD §19) add to the configured salary rather
+  // than replacing it - salary being unset still means "no forecast yet".
+  const monthlyIncome =
+    profile?.monthly_salary != null
+      ? profile.monthly_salary + computeTotalIncome(currentMonthTx)
+      : null;
+
   const savingsForecast = computeSavingsForecast(
-    profile?.monthly_salary ?? null,
+    monthlyIncome,
     computeTotalSpend(currentMonthTx),
     upcomingWithinCurrentMonth
   );
