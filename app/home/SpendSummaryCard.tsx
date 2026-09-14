@@ -15,14 +15,14 @@ export function SpendSummaryCard({
   return (
     <div className="card grid grid-cols-2 gap-4">
       <div className="flex flex-col gap-1">
-        <span className="text-sm text-[var(--color-text-secondary)]">Total spend</span>
-        <span className="text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <span className="card-label">Total spend</span>
+        <span className="stat-figure text-[var(--color-text-primary)]">
           {formatAmount(totalSpend, currency)}
         </span>
       </div>
       <div className="flex flex-col gap-1 border-l border-[var(--color-border)] pl-4">
-        <span className="text-sm text-[var(--color-text-secondary)]">Upcoming spend</span>
-        <span className="text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <span className="card-label">Upcoming spend</span>
+        <span className="stat-figure text-[var(--color-warning)]">
           {formatAmount(upcomingSpend, currency)}
         </span>
         {!hasUpcomingItems ? (

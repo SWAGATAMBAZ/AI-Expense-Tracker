@@ -25,7 +25,7 @@ export function RecentTransactionsCard({
   return (
     <div className="card flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">Transactions</h2>
+        <h2 className="card-label">Transactions</h2>
         <Link href="/transactions" className="text-sm font-medium text-[var(--color-primary)]">
           View all
         </Link>
@@ -52,7 +52,7 @@ export function RecentTransactionsCard({
                 </span>
               </div>
               <span
-                className={`text-sm font-semibold ${
+                className={`text-sm font-semibold tabular-nums ${
                   transaction.type === "expense"
                     ? "text-[var(--color-text-primary)]"
                     : "text-[var(--color-accent)]"

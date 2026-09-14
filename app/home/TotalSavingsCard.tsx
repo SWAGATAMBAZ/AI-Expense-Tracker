@@ -12,7 +12,7 @@ export function TotalSavingsCard({
   if (forecast === null) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="text-sm text-[var(--color-text-secondary)]">Total savings</span>
+        <span className="card-label">Total savings</span>
         <Link href="/profile" className="text-sm font-medium text-[var(--color-primary)]">
           Set up salary
         </Link>
@@ -21,13 +21,15 @@ export function TotalSavingsCard({
   }
 
   return (
-    <div className="card flex flex-col gap-1">
-      <span className="text-sm text-[var(--color-text-secondary)]">Total savings</span>
-      <span className="text-2xl font-semibold tracking-tight text-[var(--color-accent)]">
+    <div className="card flex flex-col gap-1 border-[color-mix(in_srgb,var(--color-accent)_25%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent)_6%,white)]">
+      <span className="card-label">Total savings</span>
+      <span className="stat-figure text-[var(--color-accent)]">
         {formatAmount(forecast.amount, currency)}
       </span>
       {forecast.isOverBudget ? (
-        <span className="text-xs text-[var(--color-danger)]">Spending exceeds income</span>
+        <span className="text-xs font-medium text-[var(--color-danger)]">
+          Spending exceeds income
+        </span>
       ) : null}
     </div>
   );

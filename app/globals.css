@@ -13,6 +13,8 @@
   --color-danger: #dc2626; /* red-600 */
   --color-danger-foreground: #ffffff;
 
+  --color-warning: #d97706; /* amber-600 - matches the chart palette's amber */
+
   --color-surface: #ffffff;
   --color-surface-muted: #f8fafc; /* slate-50 */
   --color-border: #e2e8f0; /* slate-200 */
@@ -61,4 +63,12 @@ body {
 
 .card {
   @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm;
+}
+
+.card-label {
+  @apply text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)];
+}
+
+.stat-figure {
+  @apply text-3xl font-bold tracking-tight tabular-nums;
 }

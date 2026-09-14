@@ -6,7 +6,7 @@ export function TopCategoriesCard({ items }: { items: CategoryBreakdownItem[] })
 
   return (
     <div className="card flex flex-col gap-2">
-      <span className="text-sm text-[var(--color-text-secondary)]">Top categories</span>
+      <span className="card-label">Top categories</span>
       {top.length === 0 ? (
         <span className="text-sm text-[var(--color-text-muted)]">No spending yet</span>
       ) : (
@@ -17,7 +17,7 @@ export function TopCategoriesCard({ items }: { items: CategoryBreakdownItem[] })
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: getChartColor(index) }}
               />
-              <span className="text-sm font-medium text-[var(--color-text-primary)]">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                 {item.categoryName}
               </span>
             </li>

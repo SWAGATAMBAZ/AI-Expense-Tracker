@@ -16,9 +16,7 @@ export function CategoryBreakdownChart({
   if (items.length === 0) {
     return (
       <div className="card flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
-          Spending by category
-        </h2>
+        <h2 className="card-label">Spending by category</h2>
         <p className="text-sm text-[var(--color-text-secondary)]">
           No expenses recorded for this period yet.
         </p>
@@ -31,9 +29,7 @@ export function CategoryBreakdownChart({
 
   return (
     <div className="card flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
-        Spending by category
-      </h2>
+      <h2 className="card-label">Spending by category</h2>
 
       <ResponsiveContainer width="100%" height={Math.max(160, items.length * 32)}>
         <BarChart data={items} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
@@ -71,9 +67,9 @@ export function CategoryBreakdownChart({
               />
               {item.categoryName}
             </span>
-            <span className="text-[var(--color-text-primary)]">
+            <span className="font-medium tabular-nums text-[var(--color-text-primary)]">
               {formatAmount(item.amount, currency)}{" "}
-              <span className="text-[var(--color-text-muted)]">
+              <span className="font-normal text-[var(--color-text-muted)]">
                 ({item.percentage.toFixed(0)}%)
               </span>
             </span>

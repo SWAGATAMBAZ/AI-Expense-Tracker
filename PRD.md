@@ -409,7 +409,9 @@ Users should be able to:
 
 # 13. AI Expense Assistant
 
-A floating AI button should be available on the dashboard.
+An AI action should be available from the dashboard's bottom navigation bar
+(center position, alongside Transactions, Add recurring expense, Add expense,
+and Account).
 
 When clicked, it opens an AI chat interface.
 

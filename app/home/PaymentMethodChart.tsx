@@ -15,9 +15,7 @@ export function PaymentMethodChart({
   if (items.length === 0) {
     return (
       <div className="card flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
-          Payment method mix
-        </h2>
+        <h2 className="card-label">Payment method mix</h2>
         <p className="text-sm text-[var(--color-text-secondary)]">
           No expenses recorded for this period yet.
         </p>
@@ -29,9 +27,7 @@ export function PaymentMethodChart({
 
   return (
     <div className="card flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
-        Payment method mix
-      </h2>
+      <h2 className="card-label">Payment method mix</h2>
 
       <div className="relative">
         <ResponsiveContainer width="100%" height={220}>
@@ -57,7 +53,7 @@ export function PaymentMethodChart({
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-[var(--color-text-secondary)]">Total</span>
-          <span className="text-base font-semibold text-[var(--color-text-primary)]">
+          <span className="text-base font-bold tabular-nums text-[var(--color-text-primary)]">
             {formatAmount(total, currency)}
           </span>
         </div>
@@ -73,9 +69,9 @@ export function PaymentMethodChart({
               />
               {item.method}
             </span>
-            <span className="text-[var(--color-text-primary)]">
+            <span className="font-medium tabular-nums text-[var(--color-text-primary)]">
               {formatAmount(item.amount, currency)}{" "}
-              <span className="text-[var(--color-text-muted)]">
+              <span className="font-normal text-[var(--color-text-muted)]">
                 ({item.percentage.toFixed(0)}%)
               </span>
             </span>

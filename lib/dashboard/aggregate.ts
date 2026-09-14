@@ -5,12 +5,18 @@ export interface TransactionForAggregate {
   payment_method: string | null;
 }
 
-function expensesOnly(transactions: TransactionForAggregate[]): TransactionForAggregate[] {
-  return transactions.filter((t) => t.type === "expense");
+function spendRelevant(transactions: TransactionForAggregate[]): TransactionForAggregate[] {
+  return transactions.filter((t) => t.type === "expense" || t.type === "refund");
+}
+
+/** A refund reverses a prior expense (PRD §12), so it nets against spend rather than being ignored. */
+function signedAmount(t: TransactionForAggregate): number {
+  return t.type === "refund" ? -t.amount : t.amount;
 }
 
 export function computeTotalSpend(transactions: TransactionForAggregate[]): number {
-  return expensesOnly(transactions).reduce((sum, t) => sum + t.amount, 0);
+  const net = spendRelevant(transactions).reduce((sum, t) => sum + signedAmount(t), 0);
+  return Math.max(0, net);
 }
 
 export interface CategoryBreakdownItem {
@@ -24,18 +30,21 @@ export function computeCategoryBreakdown(
   transactions: TransactionForAggregate[],
   categories: { id: number; name: string }[]
 ): CategoryBreakdownItem[] {
-  const expenses = expensesOnly(transactions);
-  const total = expenses.reduce((sum, t) => sum + t.amount, 0);
+  const total = computeTotalSpend(transactions);
 
   const byCategory = new Map<number | null, number>();
-  for (const t of expenses) {
-    byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + t.amount);
+  for (const t of spendRelevant(transactions)) {
+    byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + signedAmount(t));
   }
 
   const nameById = new Map(categories.map((c) => [c.id, c.name]));
 
   return Array.from(byCategory.entries())
-    .map(([categoryId, amount]) => ({
+    // A category fully offset by its own refunds (or over-refunded) contributes
+    // nothing to display - never a negative slice.
+    .map(([categoryId, netAmount]) => ({ categoryId, amount: Math.max(0, netAmount) }))
+    .filter((entry) => entry.amount > 0)
+    .map(({ categoryId, amount }) => ({
       categoryId,
       categoryName: categoryId != null ? (nameById.get(categoryId) ?? "Uncategorized") : "Uncategorized",
       amount,
@@ -53,17 +62,18 @@ export interface PaymentMethodMixItem {
 export function computePaymentMethodMix(
   transactions: TransactionForAggregate[]
 ): PaymentMethodMixItem[] {
-  const expenses = expensesOnly(transactions);
-  const total = expenses.reduce((sum, t) => sum + t.amount, 0);
+  const total = computeTotalSpend(transactions);
 
   const byMethod = new Map<string, number>();
-  for (const t of expenses) {
+  for (const t of spendRelevant(transactions)) {
     const method = t.payment_method?.trim() || "Unspecified";
-    byMethod.set(method, (byMethod.get(method) ?? 0) + t.amount);
+    byMethod.set(method, (byMethod.get(method) ?? 0) + signedAmount(t));
   }
 
   return Array.from(byMethod.entries())
-    .map(([method, amount]) => ({
+    .map(([method, netAmount]) => ({ method, amount: Math.max(0, netAmount) }))
+    .filter((entry) => entry.amount > 0)
+    .map(({ method, amount }) => ({
       method,
       amount,
       percentage: total > 0 ? (amount / total) * 100 : 0,

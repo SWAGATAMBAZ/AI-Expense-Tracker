@@ -21,7 +21,6 @@ import { SpendSummaryCard } from "./SpendSummaryCard";
 import { TopCategoriesCard } from "./TopCategoriesCard";
 import { TotalSavingsCard } from "./TotalSavingsCard";
 import { PaymentMethodChart } from "./PaymentMethodChart";
-import { AIFabPlaceholder } from "./AIFabPlaceholder";
 import { CategoryBreakdownChart } from "./CategoryBreakdownChart";
 import { RecentTransactionsCard, type RecentTransactionItem } from "./RecentTransactionsCard";
 
@@ -149,7 +148,9 @@ export default async function HomePage({
   return (
     <main className="flex flex-1 flex-col gap-6 py-8">
       <h1 className="sr-only">Dashboard</h1>
-      <p className="text-sm text-[var(--color-text-secondary)]">Welcome back, {displayName}.</p>
+      <p className="text-sm text-[var(--color-text-secondary)]">
+        Welcome back, <span className="font-medium text-[var(--color-text-primary)]">{displayName}</span>.
+      </p>
 
       <div className="flex items-center justify-between">
         <DateRangeFilter active={filter} label={range.label} />
@@ -179,10 +180,7 @@ export default async function HomePage({
             )}
           </div>
 
-          <div className="relative">
-            <PaymentMethodChart items={paymentMethodMix} currency={currency} />
-            <AIFabPlaceholder className="absolute -bottom-7 right-4 z-10" />
-          </div>
+          <PaymentMethodChart items={paymentMethodMix} currency={currency} />
 
           <CategoryBreakdownChart items={categoryBreakdown} currency={currency} />
         </>
