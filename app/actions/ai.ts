@@ -160,7 +160,7 @@ async function handleAddTransaction(
     };
   }
 
-  const { error } = await insertTransactionRow(supabase, userId, {
+  const { error, matchedRecurringExpenseName } = await insertTransactionRow(supabase, userId, {
     merchant,
     amountPaise: amount.value,
     currency,
@@ -175,14 +175,18 @@ async function handleAddTransaction(
   if (error) return { kind: "error", text: error };
 
   revalidatePath("/transactions");
+  revalidatePath("/recurring");
   revalidatePath("/home");
 
   const categoryName = categoryId ? categories.find((c) => c.id === categoryId)?.name : undefined;
+  const settleNote = matchedRecurringExpenseName
+    ? ` This settles your upcoming ${matchedRecurringExpenseName} payment.`
+    : "";
   return {
     kind: "confirmation",
     text: `Added ${formatAmount(amount.value, currency)} ${type}${merchant ? ` at ${merchant}` : ""}${
       categoryName ? ` — ${categoryName}` : ""
-    }.`,
+    }.${settleNote}`,
     href: "/transactions",
   };
 }

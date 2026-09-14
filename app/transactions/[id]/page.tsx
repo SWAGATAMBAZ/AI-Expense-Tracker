@@ -20,7 +20,7 @@ export default async function TransactionDetailPage({
   const { data: transaction, error } = await supabase
     .from("transactions")
     .select(
-      "id, merchant, amount, currency, transaction_date, payment_method, account_info, type, notes, source, category:categories(name)"
+      "id, merchant, amount, currency, transaction_date, payment_method, account_info, type, notes, source, category:categories(name), matched_recurring_expense:recurring_expenses(name)"
     )
     .eq("id", id)
     .eq("user_id", user.id)
@@ -42,6 +42,9 @@ export default async function TransactionDetailPage({
   const category = Array.isArray(transaction.category)
     ? transaction.category[0]
     : transaction.category;
+  const matchedRecurringExpense = Array.isArray(transaction.matched_recurring_expense)
+    ? transaction.matched_recurring_expense[0]
+    : transaction.matched_recurring_expense;
   const typeLabel = transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1);
 
   const rows: [string, string][] = [
@@ -53,6 +56,7 @@ export default async function TransactionDetailPage({
     ["Account/card", transaction.account_info ?? "—"],
     ["Type", typeLabel],
     ["Notes", transaction.notes ?? "—"],
+    ...(matchedRecurringExpense ? ([["Settles", matchedRecurringExpense.name]] as [string, string][]) : []),
   ];
 
   return (

@@ -77,18 +77,22 @@ describe("createTransaction", () => {
     fromImpl = (table: string) => {
       if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
       if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
+      if (table === "recurring_expenses") return makeQueryBuilder({ data: [] });
       if (table === "transactions") return makeQueryBuilder({ error: null });
       throw new Error(`unexpected table ${table}`);
     };
 
     await expect(createTransaction({}, validFormData())).rejects.toThrow("REDIRECT:/transactions");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/recurring");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
   });
 
   it("returns a generic error when the insert fails", async () => {
     fromImpl = (table: string) => {
       if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
       if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
+      if (table === "recurring_expenses") return makeQueryBuilder({ data: [] });
       if (table === "transactions") return makeQueryBuilder({ error: { message: "boom" } });
       throw new Error(`unexpected table ${table}`);
     };
@@ -103,6 +107,88 @@ describe("createTransaction", () => {
 
     const result = await createTransaction({}, validFormData());
     expect(result.error).toBe("Your session expired. Please log in again.");
+  });
+
+  it("records a matched recurring expense and advances its next due date", async () => {
+    // validFormData: amount 500, categoryId 1, date 2026-01-01, type expense.
+    let transactionsInsertBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
+    let recurringUpdateBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
+    let recurringCallCount = 0;
+
+    fromImpl = (table: string) => {
+      if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
+      if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
+      if (table === "recurring_expenses") {
+        recurringCallCount++;
+        if (recurringCallCount === 1) {
+          return makeQueryBuilder({
+            data: [
+              {
+                id: "rec-1",
+                name: "Zomato Gold",
+                amount: 500_00,
+                frequency: "monthly",
+                next_due_date: "2026-01-03",
+                category_id: 1,
+              },
+            ],
+          });
+        }
+        recurringUpdateBuilder = makeQueryBuilder({ error: null });
+        return recurringUpdateBuilder;
+      }
+      if (table === "transactions") {
+        transactionsInsertBuilder = makeQueryBuilder({ error: null });
+        return transactionsInsertBuilder;
+      }
+      throw new Error(`unexpected table ${table}`);
+    };
+
+    await expect(createTransaction({}, validFormData())).rejects.toThrow("REDIRECT:/transactions");
+
+    expect(transactionsInsertBuilder!.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ matched_recurring_expense_id: "rec-1" })
+    );
+    expect(recurringUpdateBuilder!.update).toHaveBeenCalledWith(
+      expect.objectContaining({ next_due_date: "2026-02-03" })
+    );
+  });
+
+  it("does not touch any recurring expense when nothing matches", async () => {
+    let transactionsInsertBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
+    let recurringCallCount = 0;
+
+    fromImpl = (table: string) => {
+      if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
+      if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
+      if (table === "recurring_expenses") {
+        recurringCallCount++;
+        return makeQueryBuilder({
+          data: [
+            {
+              id: "rec-1",
+              name: "Rent",
+              amount: 20_000_00,
+              frequency: "monthly",
+              next_due_date: "2026-01-28",
+              category_id: 9,
+            },
+          ],
+        });
+      }
+      if (table === "transactions") {
+        transactionsInsertBuilder = makeQueryBuilder({ error: null });
+        return transactionsInsertBuilder;
+      }
+      throw new Error(`unexpected table ${table}`);
+    };
+
+    await expect(createTransaction({}, validFormData())).rejects.toThrow("REDIRECT:/transactions");
+
+    expect(transactionsInsertBuilder!.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ matched_recurring_expense_id: null })
+    );
+    expect(recurringCallCount).toBe(1); // only the candidate fetch, never an update
   });
 });
 
