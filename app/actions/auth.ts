@@ -5,11 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export interface AuthActionState {
   error?: string;
+  emailConfirmationRequired?: boolean;
 }
 
 function friendlyAuthError(message: string): string {
   if (/already registered|already been registered/i.test(message)) {
     return "An account with this email already exists. Try logging in instead.";
+  }
+  if (/email not confirmed|email_not_confirmed/i.test(message)) {
+    return "Please confirm your email before logging in — check your inbox for the confirmation link we sent you.";
   }
   if (/invalid login credentials/i.test(message)) {
     return "Incorrect email or password.";
@@ -46,12 +50,20 @@ export async function signUp(
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: name } },
     });
-    if (error) return { error: friendlyAuthError(error.message) };
+    if (error) {
+      console.error("[signUp] supabase error:", error.message);
+      return { error: friendlyAuthError(error.message) };
+    }
+    if (!data.session) {
+      // Email confirmation is enabled on this project — no session yet, so
+      // there's nothing to redirect into. Let the user know instead.
+      return { emailConfirmationRequired: true };
+    }
   } catch (error) {
     // redirect()/notFound() work by throwing internally — never swallow those.
     unstable_rethrow(error);
@@ -74,7 +86,10 @@ export async function signIn(
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: friendlyAuthError(error.message) };
+    if (error) {
+      console.error("[signIn] supabase error:", error.message);
+      return { error: friendlyAuthError(error.message) };
+    }
   } catch (error) {
     unstable_rethrow(error);
     console.error("[signIn] unexpected error:", error);

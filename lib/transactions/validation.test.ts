@@ -64,6 +64,11 @@ describe("validateTransactionDate", () => {
     expect(validateTransactionDate("not-a-date").ok).toBe(false);
   });
 
+  it("rejects calendar-invalid dates instead of silently rolling over", () => {
+    expect(validateTransactionDate("2024-02-30").ok).toBe(false);
+    expect(validateTransactionDate("2025-04-31").ok).toBe(false);
+  });
+
   it("rejects dates before the minimum", () => {
     expect(validateTransactionDate("1999-12-31").ok).toBe(false);
   });

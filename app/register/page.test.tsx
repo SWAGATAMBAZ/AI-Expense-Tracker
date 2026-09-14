@@ -44,4 +44,27 @@ describe("RegisterPage", () => {
       expect(screen.getByText(/already exists/i)).toBeInTheDocument();
     });
   });
+
+  it("shows a check-your-email panel instead of the form when confirmation is required", async () => {
+    signUpMock.mockResolvedValue({ emailConfirmationRequired: true });
+
+    render(<RegisterPage />);
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: "Jordan Rivera" } });
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "jordan@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/confirm password/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: /create account/i }).closest("form")!
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/check your email/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /go to login/i })).toHaveAttribute("href", "/login");
+    expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
+  });
 });

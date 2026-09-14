@@ -325,6 +325,10 @@ Do not display negative savings on the primary dashboard.
 
 The application can optionally communicate that the user's projected spending exceeds their income through a warning/insight.
 
+### Refund Netting
+
+Confirmed Spend nets refunds against their matching expense rather than ignoring them — a ₹500 expense that is fully refunded contributes ₹0 to Confirmed Spend for the period (floored at 0 if refunds exceed expenses). This applies to the category breakdown and payment-method mix as well, so they always sum back to the headline Total Spend figure.
+
 ---
 
 # 10. Avoid Double Counting in Savings
@@ -409,7 +413,9 @@ Users should be able to:
 
 # 13. AI Expense Assistant
 
-A floating AI button should be available on the dashboard.
+An AI action should be available from the dashboard's bottom navigation bar
+(center position, alongside Transactions, Add recurring expense, Add expense,
+and Account).
 
 When clicked, it opens an AI chat interface.
 
@@ -500,7 +506,7 @@ Money spent by the user.
 Money received by the user, such as salary.
 
 ### Refund
-Money returned from a previous expense.
+Money returned from a previous expense. Nets against Total Spend and the Savings Forecast rather than being ignored (see §9).
 
 ### Transfer
 Money moved between the user's own accounts.
