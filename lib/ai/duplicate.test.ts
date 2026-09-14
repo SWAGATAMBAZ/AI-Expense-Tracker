@@ -1,0 +1,95 @@
+import { describe, expect, it, vi } from "vitest";
+import { findDuplicateTransaction } from "./duplicate";
+
+function makeSupabase(result: { data: unknown; error: unknown }) {
+  const builder = {
+    eq: vi.fn(() => builder),
+    then: (resolve: (value: typeof result) => void) => resolve(result),
+  };
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn(() => builder),
+    })),
+  } as never;
+}
+
+describe("findDuplicateTransaction", () => {
+  it("returns the matching row when merchant matches case-insensitively", async () => {
+    const supabase = makeSupabase({
+      data: [{ id: "txn-1", merchant: "Zomato", amount: 500_00, transaction_date: "2026-09-14" }],
+      error: null,
+    });
+
+    const result = await findDuplicateTransaction(supabase, "user-1", {
+      amountPaise: 500_00,
+      date: "2026-09-14",
+      type: "expense",
+      merchant: "zomato",
+    });
+
+    expect(result).toEqual({
+      id: "txn-1",
+      merchant: "Zomato",
+      amount: 500_00,
+      transaction_date: "2026-09-14",
+    });
+  });
+
+  it("returns null when no row shares the same date+amount+type", async () => {
+    const supabase = makeSupabase({ data: [], error: null });
+
+    const result = await findDuplicateTransaction(supabase, "user-1", {
+      amountPaise: 500_00,
+      date: "2026-09-14",
+      type: "expense",
+      merchant: "Zomato",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the merchant doesn't match any same-day/amount/type row", async () => {
+    const supabase = makeSupabase({
+      data: [{ id: "txn-1", merchant: "Swiggy", amount: 500_00, transaction_date: "2026-09-14" }],
+      error: null,
+    });
+
+    const result = await findDuplicateTransaction(supabase, "user-1", {
+      amountPaise: 500_00,
+      date: "2026-09-14",
+      type: "expense",
+      merchant: "Zomato",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("matches on date+amount+type alone when the candidate has no merchant", async () => {
+    const supabase = makeSupabase({
+      data: [{ id: "txn-1", merchant: null, amount: 500_00, transaction_date: "2026-09-14" }],
+      error: null,
+    });
+
+    const result = await findDuplicateTransaction(supabase, "user-1", {
+      amountPaise: 500_00,
+      date: "2026-09-14",
+      type: "expense",
+      merchant: null,
+    });
+
+    expect(result?.id).toBe("txn-1");
+  });
+
+  it("returns null (not throws) on a supabase error", async () => {
+    const supabase = makeSupabase({ data: null, error: { message: "boom" } });
+
+    const result = await findDuplicateTransaction(supabase, "user-1", {
+      amountPaise: 500_00,
+      date: "2026-09-14",
+      type: "expense",
+      merchant: null,
+    });
+
+    expect(result).toBeNull();
+  });
+});
