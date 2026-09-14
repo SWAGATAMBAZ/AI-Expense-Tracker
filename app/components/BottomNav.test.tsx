@@ -29,17 +29,48 @@ describe("BottomNav", () => {
     expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/profile");
   });
 
-  it("renders nothing on a form/task page like /transactions/new", () => {
-    pathname = "/transactions/new";
-    const { container } = render(<BottomNav />);
-
-    expect(container).toBeEmptyDOMElement();
+  it("is a persistent app-wide nav: also shown on form/detail sub-pages", () => {
+    for (const path of [
+      "/transactions/new",
+      "/transactions/txn-1",
+      "/transactions/txn-1/edit",
+      "/recurring/new",
+      "/recurring/rec-1/edit",
+    ]) {
+      pathname = path;
+      const { container, unmount } = render(<BottomNav />);
+      expect(container).not.toBeEmptyDOMElement();
+      unmount();
+    }
   });
 
-  it("renders nothing on public/auth pages", () => {
-    pathname = "/login";
-    const { container } = render(<BottomNav />);
+  it("renders nothing on public/auth/onboarding pages", () => {
+    for (const path of ["/", "/login", "/register", "/onboarding"]) {
+      pathname = path;
+      const { container, unmount } = render(<BottomNav />);
+      expect(container).toBeEmptyDOMElement();
+      unmount();
+    }
+  });
 
-    expect(container).toBeEmptyDOMElement();
+  it("highlights Add expense (not Transactions) on /transactions/new", () => {
+    pathname = "/transactions/new";
+    render(<BottomNav />);
+
+    expect(screen.getByRole("link", { name: /^add expense$/i })).toHaveClass(
+      "border-[var(--color-primary)]"
+    );
+    expect(screen.getByRole("link", { name: /^transactions$/i })).not.toHaveClass(
+      "border-[var(--color-primary)]"
+    );
+  });
+
+  it("highlights Transactions on a transaction detail/edit page", () => {
+    pathname = "/transactions/txn-1/edit";
+    render(<BottomNav />);
+
+    expect(screen.getByRole("link", { name: /^transactions$/i })).toHaveClass(
+      "border-[var(--color-primary)]"
+    );
   });
 });

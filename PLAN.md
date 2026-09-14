@@ -64,19 +64,21 @@ Explicitly **not** using: a separate backend framework/server, a paid vector DB,
 | 4 | Dashboard & forecasting math | 8, 9, 10, 11 (totals, category chart, upcoming spend, savings forecast, payment mix, date filters) | 2, 3 |
 | 5 | LLM extraction pipeline | 5, 20 (message → LLM → validate → dedupe → DB), 17 (duplicate detection) | 2 |
 | 6 | AI chat expense entry | 13, 14, 18 (chat UI, NL entry, confidence/clarifying questions) | 5 |
-| 7 | SMS/message ingestion (MVP form) | 4, 21, 25.1 (paste + Share Target, same pipeline as phase 5) | 5 |
+| 9 | Recurring-expense matching | 7 (upcoming → processed transition), 10 (avoid double-counting in savings) | 3, 5, 6 |
+
+**Phases 7 (SMS/message ingestion) and 8 (Voice expense entry) are cut from this MVP** — see PRD §25.1/§25.2 and the P2 table below. Phase 9 keeps its original number (it predates this decision) but no longer depends on Phase 7: it now matches a recurring expense against a transaction from *any* source already built (manual entry, AI chat), not specifically an ingested message.
 
 ### P1 — after MVP is working end-to-end
 
 | Phase | Name | PRD sections covered | Depends on |
 |---|---|---|---|
-| 8 | Voice expense entry | 15, 25.2 | 6 |
-| 9 | Recurring-expense matching + transaction types | 7 (matching engine), 16 (income/refund/transfer) | 3, 5 |
-| 10 | Edge-case hardening | 19 (full edge case list) | 1–9 |
+| 10 | Edge-case hardening | 19 (full edge case list) | 1–6, 9 |
 
 ### P2 — explicitly deferred (backlog only, not scheduled)
 
-Native Android app for real SMS auto-read, advanced forecasting, budget recommendations, anomaly detection, multi-account aggregation, custom categories UI — from PRD §23 P2 list.
+- **Phase 7 — SMS/message ingestion**: architecture designed and documented (PRD §25.1 — paste + Android PWA Share Target, reusing the Phase 5/6 pipeline as-is), but not built. Revisit as a dedicated phase if this project moves beyond a web-link prototype.
+- **Phase 8 — Voice expense entry**: cut entirely, not just deprioritized (PRD §25.2).
+- Native Android app for real SMS auto-read (`NotificationListenerService`), advanced forecasting, budget recommendations, anomaly detection, multi-account aggregation, custom categories UI — from PRD §23 P2 list.
 
 ### Final phases (apply once, after P0 — and again after P1 if time allows)
 
@@ -97,9 +99,10 @@ Native Android app for real SMS auto-read, advanced forecasting, budget recommen
 - **Phase 4 — Dashboard**: date-range filter component, total spend, category breakdown (Recharts), upcoming spend list, savings forecast (PRD §9/10 formula, floor at ₹0), payment-method donut chart. The dashboard's quick actions (Transactions, Add recurring expense, AI feature, Add expense, Account) were later consolidated into a persistent bottom navigation bar per an approved wireframe, replacing a floating AI button. The AI slot opens a placeholder page for now — it gets real behavior in Phases 5/6 below, not this phase. Total spend/category breakdown/payment-method mix were also updated to net refunds against their matching expense (PRD §9 "Refund Netting") instead of ignoring them.
 - **Phase 5 — LLM pipeline**: OpenRouter client wrapper, structured-output schema + validation (e.g. zod), duplicate-detection function (amount/date/merchant/account/ref-id comparison per PRD §17), confidence threshold → auto-save vs. ask-user branch (PRD §18).
 - **Phase 6 — AI chat**: floating action button, chat UI, wires NL text into phase 5 pipeline, follow-up question flow when required fields are missing.
-- **Phase 7 — SMS ingestion MVP**: paste-a-message screen + Android Share Target manifest entry, routes text through the same phase 5 pipeline, "upcoming → processed" transition logic (PRD §7 matching, best-effort per PRD §7's "if not confident, don't assume" rule).
-- **Phase 8 — Voice**: Web Speech API integration, transcript → phase 5/6 pipeline, feature-detected UI (hidden gracefully on unsupported browsers).
-- **Phase 9 — Matching & transaction types**: *automatic* income/refund/transfer classification (from the LLM pipeline) and the recurring-expense matcher wired into phase 7 ingestion. Manual classification (the type field on the transaction form) and refund netting into the dashboard math already ship as of Phase 4 — this phase is about doing it automatically from ingested messages, plus the matching engine itself.
+- **Phase 7 — SMS ingestion (deferred, not built)**: would be a paste-a-message screen + Android Share Target manifest entry, routing text through the same Phase 5 pipeline. Not implemented for this MVP — see PRD §25.1.
+- **Phase 8 — Voice (deferred, not built)**: would be Web Speech API integration, transcript → Phase 5/6 pipeline, feature-detected UI. Not implemented for this MVP — see PRD §25.2.
+- **Phase 9 — Recurring-expense matching**: the real gap this closes — `lib/recurring/upcoming.ts`'s `getUpcomingSpend` is purely date-based (it just rolls a due date forward once it's passed) with zero awareness of whether a matching transaction was already recorded. So today, if a user pays Rent and adds/chats it as a transaction, Rent still shows as "upcoming" until its due date passes on the calendar — meaning it's subtracted from the savings forecast *twice* (once as confirmed spend, once as still-upcoming), exactly what PRD §10 says must never happen. This phase adds a matcher (amount + category/merchant + date proximity, per PRD §7's matching fields) that runs whenever a transaction is created (manual or AI chat — no dependency on Phase 7 ingestion) and, on a confident match, advances that recurring expense's `next_due_date` so it drops out of Upcoming Spend. Per PRD §7, an unconfident match must not be auto-assumed — leave it upcoming rather than guess.
+  - Automatic income/refund/transfer classification *from ingested messages* (PRD §16) is out of scope here too, since it depends on the deferred Phase 7. Manual/AI-chat classification (the `type` field) and refund netting into the dashboard math already ship as of Phase 4/6.
 - **Phase 10 — Edge cases**: work through PRD §19 checklist explicitly as test cases, patch gaps found.
 
 ---
@@ -109,16 +112,16 @@ Native Android app for real SMS auto-read, advanced forecasting, budget recommen
 - **Per phase (continuous)**:
   - Unit tests (Vitest) for pure logic: savings formula, duplicate matching, category defaults, upcoming→processed transition.
   - Component tests (React Testing Library) for forms and the transaction list on mobile viewport sizes.
-  - For phases involving the LLM (5, 6, 7, 8): mock the LLM response in tests (deterministic), and manually test 5–10 real free-tier LLM calls with real-ish sample messages before marking the phase done.
+  - For phases involving the LLM (5, 6): mock the LLM response in tests (deterministic), and manually test 5–10 real free-tier LLM calls with real-ish sample messages before marking the phase done.
 - **Before each merge**: CI runs lint + typecheck + unit/component tests (GitHub Actions, free).
-- **Phase 11 (full regression)**: Playwright E2E suite covering the golden path end-to-end on a mobile viewport — onboarding → paste an SMS → see it on dashboard → add an expense via chat → see savings update — plus the PRD §24 success-criteria list run through manually once.
-- **Security pass** (fold into phase 11 or run `/security-review`): confirm RLS policies actually block cross-user access, confirm secrets aren't logged, confirm SMS/message text isn't over-retained (PRD §25.4).
+- **Phase 11 (full regression)**: Playwright E2E suite covering the golden path end-to-end on a mobile viewport — onboarding → add an expense via chat → see it on dashboard → see savings update — plus the PRD §24 success-criteria list run through manually once.
+- **Security pass** (fold into phase 11 or run `/security-review`): confirm RLS policies actually block cross-user access, confirm secrets aren't logged.
 
 ---
 
 ## 6. Code Review Strategy
 
-- After every phase's execute+test step: `/code-review` (medium effort is enough for most phases; use `high` for phases 5, 7, 9 since they carry the duplicate/matching/financial logic that's easy to get subtly wrong).
+- After every phase's execute+test step: `/code-review` (medium effort is enough for most phases; use `high` for phases 5 and 9 since they carry the duplicate/matching/financial logic that's easy to get subtly wrong).
 - Before deployment (phase 12): one broader pass — `/code-review high` end-to-end, or `/code-review ultra` if you want the multi-agent cloud pass — across the full diff since project start.
 - Apply or consciously reject each finding; don't silently skip.
 
@@ -138,4 +141,4 @@ Native Android app for real SMS auto-read, advanced forecasting, budget recommen
 
 ## 8. Definition of Done for MVP (P0)
 
-All of PRD §23 P0 items work end-to-end on a real mobile browser, phases 0–7 have passed their tests and code review, phase 11–13 (regression, review, deploy) are complete, and the PRD §24 success-criteria list can be walked through live on the deployed link.
+All of PRD §23 P0 items work end-to-end on a real mobile browser, phases 0–6 and 9 have passed their tests and code review (7 and 8 are cut for this MVP — PRD §25.1/§25.2), phase 11–13 (regression, review, deploy) are complete, and the PRD §24 success-criteria list can be walked through live on the deployed link.

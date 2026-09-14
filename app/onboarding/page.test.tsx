@@ -9,8 +9,9 @@ vi.mock("@/app/actions/profile", () => ({
 }));
 
 describe("OnboardingPage", () => {
-  it("renders salary, salary day, currency, and optional bank info fields", () => {
+  it("renders name, salary, salary day, currency, and optional bank info fields", () => {
     render(<OnboardingPage />);
+    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/monthly salary/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/salary day/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/preferred currency/i)).toBeInTheDocument();

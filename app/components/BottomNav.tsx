@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const VISIBLE_PATHS = new Set(["/home", "/transactions", "/recurring", "/profile", "/ai"]);
+// Hidden only on pre-auth/one-time-setup pages; visible everywhere else in
+// the authenticated app (including form/detail sub-pages) so it's always
+// reachable, per the product decision to make it a persistent app-wide nav.
+const HIDDEN_PATH_PREFIXES = ["/login", "/register", "/onboarding"];
+
+function isHidden(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return HIDDEN_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 const NAV_ITEMS = [
   {
@@ -49,9 +57,13 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (!VISIBLE_PATHS.has(pathname)) return null;
+  if (isHidden(pathname)) return null;
 
   const [transactions, recurring, account] = NAV_ITEMS;
+  const transactionsActive =
+    pathname === transactions.href ||
+    (pathname.startsWith(`${transactions.href}/`) && pathname !== "/transactions/new");
+  const recurringActive = pathname === "/recurring" || pathname.startsWith("/recurring/");
 
   return (
     <nav
@@ -59,8 +71,8 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[env(safe-area-inset-bottom)]"
     >
       <div className="mx-auto flex w-full max-w-md items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-        <NavButton item={transactions} active={pathname === transactions.href} />
-        <NavButton item={recurring} active={pathname === "/recurring"} />
+        <NavButton item={transactions} active={transactionsActive} />
+        <NavButton item={recurring} active={recurringActive} />
 
         <Link
           href="/ai"
@@ -77,7 +89,7 @@ export function BottomNav() {
 
         <NavButton
           item={{ href: "/transactions/new", label: "Add expense", icon: <PlusIcon /> }}
-          active={false}
+          active={pathname === "/transactions/new"}
         />
         <NavButton item={account} active={pathname === account.href} />
       </div>

@@ -23,6 +23,23 @@ export default function OnboardingPage() {
 
       <form action={formAction} className="card flex flex-col gap-4">
         <div>
+          <label htmlFor="fullName" className="label-text">
+            Name
+          </label>
+          <input
+            id="fullName"
+            name="fullName"
+            type="text"
+            autoComplete="name"
+            required
+            maxLength={100}
+            className="input-field"
+            placeholder="Your name"
+          />
+          {fieldErrors.fullName ? <p className="error-text mt-1">{fieldErrors.fullName}</p> : null}
+        </div>
+
+        <div>
           <label htmlFor="salary" className="label-text">
             Monthly salary
           </label>

@@ -39,8 +39,6 @@ export default async function HomePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const displayName = user.user_metadata?.full_name || user.email;
-
   const rawFilter = typeof params.range === "string" ? params.range : "month";
   const filter: Filter = (
     (DATE_RANGE_FILTERS as readonly string[]).includes(rawFilter) ? rawFilter : "month"
@@ -69,7 +67,11 @@ export default async function HomePage({
     { data: recurringExpenses, error: recurringError },
     { data: recentTransactions, error: recentError },
   ] = await Promise.all([
-    supabase.from("profiles").select("currency, monthly_salary").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("full_name, currency, monthly_salary")
+      .eq("id", user.id)
+      .maybeSingle(),
     getCategories(supabase),
     supabase
       .from("transactions")
@@ -105,6 +107,8 @@ export default async function HomePage({
   if (recurringError) console.error("[HomePage] failed to load recurring expenses:", recurringError);
   if (recentError) console.error("[HomePage] failed to load recent transactions:", recentError);
 
+  const displayName =
+    profile?.full_name || (user.user_metadata?.full_name as string | undefined) || user.email;
   const currency = profile?.currency ?? "INR";
   const periodTx: TransactionForAggregate[] = periodTransactions ?? [];
   const currentMonthTx: TransactionForAggregate[] = periodIsCurrentMonth

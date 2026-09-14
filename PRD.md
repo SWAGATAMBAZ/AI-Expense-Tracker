@@ -714,7 +714,6 @@ It should function as a **personal financial awareness and forecasting assistant
 - Profile
 - Salary/income setup
 - Transaction storage
-- Automatic transaction ingestion
 - AI transaction extraction
 - Automatic categorization
 - Duplicate detection
@@ -730,7 +729,6 @@ It should function as a **personal financial awareness and forecasting assistant
 
 ### P1 — Important
 
-- Voice expense entry
 - AI confidence handling
 - Transaction matching with recurring expenses
 - Refund handling
@@ -738,8 +736,14 @@ It should function as a **personal financial awareness and forecasting assistant
 - Better financial insights
 - Custom categories
 
-### P2 — Future
+### P2 — Future / explicitly deferred for this MVP
 
+- **Automatic SMS/message transaction ingestion** — architecture designed
+  and documented (§25.1: paste + Android PWA Share Target, reusing the AI
+  chat pipeline), but not built for this MVP. Cut so the MVP can focus on
+  the AI chat + manual entry ingestion paths, which are fully built.
+- **Voice expense entry** — cut entirely from this MVP (not just
+  deprioritized), per §25.2. Revisit post-MVP if there's demand.
 - More transaction sources
 - Advanced financial forecasting
 - Budget recommendations
@@ -783,16 +787,19 @@ Section 4/21 describe automatic capture from bank SMS. In practice:
 - **iOS never exposes SMS content to third-party apps** — there is no API for this, at any tier.
 - **Android only exposes SMS (RECEIVE_SMS/READ_SMS) to native apps** installed from an APK/Play Store — not to anything running in a browser tab, including an installed PWA.
 
-Since a free, link-shared app is a web app (PWA), true automatic background SMS reading is **not achievable in the MVP**. The MVP ingestion mechanism is therefore:
+Since a free, link-shared app is a web app (PWA), true automatic background SMS reading is **not achievable in the MVP**. The designed (not yet built) MVP ingestion mechanism is:
 
 - **Manual forward/paste**: the user pastes or shares the bank SMS/notification text into the app.
 - **One-tap simulation via PWA Share Target**: on Android, the app registers as a share target, so the user can hit "Share" on the SMS/notification itself and land directly in the app with the text pre-filled — this is the closest free equivalent to "automatic" capture.
-- Everything downstream (LLM parse → validate → duplicate check → store → dashboard update) is identical to a "real" auto-capture pipeline, so no rework is needed later.
-- True background auto-reading is pushed to a **P2/future native Android app** (SMS Retriever API) and is explicitly out of scope for the free web prototype.
+- Everything downstream (LLM parse → validate → duplicate check → store → dashboard update) reuses the AI chat pipeline (Phase 5/6) as-is — no new backend logic, just a new entry point.
+- True silent background auto-reading requires a **native Android app** (out of scope for this MVP) using `NotificationListenerService` (reads bank SMS via their system notification — what most real Indian expense apps actually use today, since Play Store policy now restricts the broader `READ_SMS`/`RECEIVE_SMS` permission to apps whose core function is messaging) or the narrower SMS Retriever/User Consent API (OTP-style, not suited to ongoing transaction capture). None of these APIs are reachable from a browser tab/PWA on any OS; on iOS no app, native or not, can read Messages content at all.
+- **Status: designed and documented here, not built for this MVP** — cut so the MVP can focus on the AI chat + manual entry paths, which are fully built. Revisit as a dedicated phase if/when this project moves beyond a web-link prototype.
 
 ## 25.2 Voice Input Reality
 
-The Web Speech API (browser-native speech-to-text) is free and needs no backend, but is reliably supported on **Android Chrome only** — iOS Safari support is limited or absent. Voice entry should be treated as a progressive enhancement (shown when the browser supports it), not a required path.
+The Web Speech API (browser-native speech-to-text) is free and needs no backend, but is reliably supported on **Android Chrome only** — iOS Safari support is limited or absent. Voice entry would need to be a progressive enhancement (shown only when the browser supports it), not a required path.
+
+**Status: cut entirely from this MVP** (not just deprioritized) — revisit post-MVP if there's demand.
 
 ## 25.3 Free-Tier LLM Behavior
 

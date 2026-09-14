@@ -12,7 +12,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("currency, monthly_salary, salary_day, bank_info")
+    .select("full_name, currency, monthly_salary, salary_day, bank_info")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -24,6 +24,7 @@ export default async function ProfilePage() {
       </div>
 
       <ProfileForm
+        defaultFullName={profile?.full_name ?? (user.user_metadata?.full_name as string | undefined) ?? ""}
         defaultSalaryRupees={
           profile?.monthly_salary != null ? profile.monthly_salary / 100 : undefined
         }

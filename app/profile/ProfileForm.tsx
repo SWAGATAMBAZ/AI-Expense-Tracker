@@ -8,11 +8,13 @@ import { SubmitButton } from "@/app/components/SubmitButton";
 const initialState: ProfileActionState = {};
 
 export function ProfileForm({
+  defaultFullName,
   defaultSalaryRupees,
   defaultSalaryDay,
   defaultCurrency,
   defaultBankInfo,
 }: {
+  defaultFullName: string;
   defaultSalaryRupees?: number;
   defaultSalaryDay?: number;
   defaultCurrency: string;
@@ -23,6 +25,23 @@ export function ProfileForm({
 
   return (
     <form action={formAction} className="card flex flex-col gap-4">
+      <div>
+        <label htmlFor="fullName" className="label-text">
+          Name
+        </label>
+        <input
+          id="fullName"
+          name="fullName"
+          type="text"
+          autoComplete="name"
+          required
+          maxLength={100}
+          defaultValue={defaultFullName}
+          className="input-field"
+        />
+        {fieldErrors.fullName ? <p className="error-text mt-1">{fieldErrors.fullName}</p> : null}
+      </div>
+
       <div>
         <label htmlFor="salary" className="label-text">
           Monthly salary

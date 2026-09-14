@@ -12,6 +12,7 @@ export type CurrencyCode = (typeof CURRENCY_ALLOWLIST)[number];
 
 export const MAX_SALARY_RUPEES = 100_000_000; // ₹10 crore — sane ceiling, avoids overflow/absurd input
 export const MAX_BANK_INFO_LENGTH = 500;
+export const MAX_NAME_LENGTH = 100;
 
 export type FieldResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -47,6 +48,16 @@ export function parseSalaryDay(input: string): FieldResult<number> {
   return { ok: true, value: day };
 }
 
+/** Required display name, e.g. "Full name". Matches the required-at-registration convention. */
+export function validateFullName(input: string): FieldResult<string> {
+  const trimmed = input.trim();
+  if (trimmed === "") return { ok: false, error: "Name is required." };
+  if (trimmed.length > MAX_NAME_LENGTH) {
+    return { ok: false, error: `Name must be ${MAX_NAME_LENGTH} characters or fewer.` };
+  }
+  return { ok: true, value: trimmed };
+}
+
 export function validateCurrency(input: string): FieldResult<CurrencyCode> {
   const code = input.trim().toUpperCase();
   if (!(CURRENCY_ALLOWLIST as readonly string[]).includes(code)) {
@@ -66,6 +77,7 @@ export function validateBankInfo(input: string | undefined | null): FieldResult<
 }
 
 export interface ProfileFormInput {
+  fullName: string;
   salary: string;
   salaryDay: string;
   currency: string;
@@ -73,6 +85,7 @@ export interface ProfileFormInput {
 }
 
 export interface ProfileFormValues {
+  fullName: string;
   monthlySalaryPaise: number;
   salaryDay: number;
   currency: CurrencyCode;
@@ -85,12 +98,14 @@ export type ProfileFormResult =
 
 /** Aggregates all field validators; returns fieldErrors keyed for form rendering, or the parsed values. */
 export function validateProfileForm(input: ProfileFormInput): ProfileFormResult {
+  const fullName = validateFullName(input.fullName);
   const salary = parseSalaryToPaise(input.salary);
   const day = parseSalaryDay(input.salaryDay);
   const currency = validateCurrency(input.currency);
   const bank = validateBankInfo(input.bankInfo);
 
   const fieldErrors: Record<string, string> = {};
+  if (!fullName.ok) fieldErrors.fullName = fullName.error;
   if (!salary.ok) fieldErrors.salary = salary.error;
   if (!day.ok) fieldErrors.salaryDay = day.error;
   if (!currency.ok) fieldErrors.currency = currency.error;
@@ -101,6 +116,7 @@ export function validateProfileForm(input: ProfileFormInput): ProfileFormResult 
   return {
     ok: true,
     value: {
+      fullName: (fullName as { ok: true; value: string }).value,
       monthlySalaryPaise: (salary as { ok: true; value: number }).value,
       salaryDay: (day as { ok: true; value: number }).value,
       currency: (currency as { ok: true; value: CurrencyCode }).value,

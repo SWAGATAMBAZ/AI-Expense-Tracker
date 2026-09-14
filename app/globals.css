@@ -26,6 +26,11 @@
 
 :root {
   color-scheme: light;
+  /* Rendered height of app/components/BottomNav.tsx (56px tallest icon +
+     2*12px vertical padding + 1px border), plus the safe-area inset it adds
+     on notched devices - used to pin fixed bars (e.g. the AI chat input)
+     exactly above it, on every page, without hardcoding the value twice. */
+  --bottom-nav-height: calc(81px + env(safe-area-inset-bottom));
 }
 
 html,

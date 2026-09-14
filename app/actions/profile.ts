@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect, unstable_rethrow } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateProfileForm } from "@/lib/profile/validation";
 
@@ -12,6 +13,7 @@ export interface ProfileActionState {
 
 function extractFormInput(formData: FormData) {
   return {
+    fullName: String(formData.get("fullName") ?? ""),
     salary: String(formData.get("salary") ?? ""),
     salaryDay: String(formData.get("salaryDay") ?? ""),
     currency: String(formData.get("currency") ?? ""),
@@ -36,6 +38,7 @@ export async function completeOnboarding(
     const { error } = await supabase
       .from("profiles")
       .update({
+        full_name: parsed.value.fullName,
         monthly_salary: parsed.value.monthlySalaryPaise,
         salary_day: parsed.value.salaryDay,
         currency: parsed.value.currency,
@@ -51,6 +54,7 @@ export async function completeOnboarding(
     return { error: "Something went wrong. Please try again." };
   }
 
+  revalidatePath("/home");
   redirect("/home");
 }
 
@@ -71,6 +75,7 @@ export async function updateProfile(
     const { error } = await supabase
       .from("profiles")
       .update({
+        full_name: parsed.value.fullName,
         monthly_salary: parsed.value.monthlySalaryPaise,
         salary_day: parsed.value.salaryDay,
         currency: parsed.value.currency,
@@ -79,6 +84,8 @@ export async function updateProfile(
       .eq("id", user.id);
 
     if (error) return { error: "Could not save your changes. Please try again." };
+    revalidatePath("/profile");
+    revalidatePath("/home");
     return { success: true };
   } catch (error) {
     unstable_rethrow(error);

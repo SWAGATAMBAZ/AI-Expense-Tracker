@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_BANK_INFO_LENGTH,
+  MAX_NAME_LENGTH,
   MAX_SALARY_RUPEES,
   parseSalaryDay,
   parseSalaryToPaise,
   validateBankInfo,
   validateCurrency,
+  validateFullName,
   validateProfileForm,
 } from "./validation";
 
@@ -107,9 +109,26 @@ describe("validateBankInfo", () => {
   });
 });
 
+describe("validateFullName", () => {
+  it("rejects empty/whitespace-only input", () => {
+    expect(validateFullName("").ok).toBe(false);
+    expect(validateFullName("   ").ok).toBe(false);
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(validateFullName("  Jane Doe  ")).toEqual({ ok: true, value: "Jane Doe" });
+  });
+
+  it("accepts exactly the max length and rejects one over", () => {
+    expect(validateFullName("a".repeat(MAX_NAME_LENGTH)).ok).toBe(true);
+    expect(validateFullName("a".repeat(MAX_NAME_LENGTH + 1)).ok).toBe(false);
+  });
+});
+
 describe("validateProfileForm", () => {
   it("returns parsed values when everything is valid", () => {
     const result = validateProfileForm({
+      fullName: "Jane Doe",
       salary: "50000",
       salaryDay: "1",
       currency: "INR",
@@ -118,6 +137,7 @@ describe("validateProfileForm", () => {
     expect(result).toEqual({
       ok: true,
       value: {
+        fullName: "Jane Doe",
         monthlySalaryPaise: 5_000_000,
         salaryDay: 1,
         currency: "INR",
@@ -128,6 +148,7 @@ describe("validateProfileForm", () => {
 
   it("aggregates field errors for every invalid field", () => {
     const result = validateProfileForm({
+      fullName: "",
       salary: "-1",
       salaryDay: "99",
       currency: "ZZZ",
@@ -138,6 +159,7 @@ describe("validateProfileForm", () => {
       expect(Object.keys(result.fieldErrors).sort()).toEqual([
         "bankInfo",
         "currency",
+        "fullName",
         "salary",
         "salaryDay",
       ]);

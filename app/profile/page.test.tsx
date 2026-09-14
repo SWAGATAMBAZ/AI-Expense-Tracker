@@ -14,6 +14,7 @@ vi.mock("@/lib/supabase/server", () => ({
         eq: vi.fn(() => ({
           maybeSingle: vi.fn(async () => ({
             data: {
+              full_name: "Jane Doe",
               currency: "USD",
               monthly_salary: 500_000,
               salary_day: 5,
@@ -31,6 +32,7 @@ describe("ProfilePage", () => {
     const ui = await ProfilePage();
     render(ui);
 
+    expect(screen.getByLabelText(/^name$/i)).toHaveValue("Jane Doe");
     expect(screen.getByLabelText(/monthly salary/i)).toHaveValue("5000");
     expect(screen.getByLabelText(/salary day/i)).toHaveValue(5);
     expect(screen.getByLabelText(/preferred currency/i)).toHaveValue("USD");

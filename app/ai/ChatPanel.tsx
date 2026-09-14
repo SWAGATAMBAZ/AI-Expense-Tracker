@@ -53,7 +53,7 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div
         className="flex flex-col gap-2 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
         style={{ maxHeight: 420 }}
@@ -88,24 +88,36 @@ export function ChatPanel() {
         ) : null}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="e.g. Spent 500 on lunch"
-          disabled={isPending}
-          aria-label="Message"
-          className="input-field flex-1"
-        />
-        <button
-          type="submit"
-          disabled={isPending || !input.trim()}
-          className="btn-primary !w-auto shrink-0 px-4"
-        >
-          {isPending ? "…" : "Send"}
-        </button>
-      </form>
+      {/* Fixed above the app-wide bottom nav (see --bottom-nav-height) so the
+          input/send row stays reachable regardless of message-list length or
+          on-screen keyboard, instead of scrolling with the page. */}
+      <div
+        className="fixed inset-x-0 z-20 flex justify-center border-t border-[var(--color-border)] bg-[var(--color-surface)]"
+        style={{ bottom: "var(--bottom-nav-height)" }}
+      >
+        <form onSubmit={handleSubmit} className="flex w-full max-w-md gap-2 px-4 py-3">
+          <input
+            type="text"
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="e.g. Spent 500 on lunch"
+            disabled={isPending}
+            aria-label="Message"
+            className="input-field flex-1"
+          />
+          <button
+            type="submit"
+            disabled={isPending || !input.trim()}
+            className="btn-primary !w-auto shrink-0 px-4"
+          >
+            {isPending ? "…" : "Send"}
+          </button>
+        </form>
+      </div>
+      {/* Spacer reserving the space the now-fixed input bar no longer takes
+          in normal flow, so later page content (e.g. the "Back home" link)
+          isn't hidden underneath it. */}
+      <div aria-hidden style={{ height: "76px" }} />
     </div>
   );
 }
