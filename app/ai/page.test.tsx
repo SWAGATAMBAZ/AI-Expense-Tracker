@@ -12,12 +12,17 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
+vi.mock("@/app/actions/ai", () => ({
+  interpretMessage: vi.fn(),
+}));
+
 describe("AiAssistantPage", () => {
-  it("shows coming-soon copy and a way back home", async () => {
+  it("shows the chat panel and a way back home", async () => {
     const ui = await AiAssistantPage();
     render(ui);
 
-    expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/message/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /send/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /back home/i })).toHaveAttribute("href", "/home");
   });
 });
