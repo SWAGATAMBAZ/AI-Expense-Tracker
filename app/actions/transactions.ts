@@ -10,6 +10,12 @@ import {
   type TransactionFormInput,
   type TransactionType,
 } from "@/lib/transactions/validation";
+import {
+  findMatchingRecurringExpense,
+  advancePastMatch,
+  type RecurringMatchCandidate,
+} from "@/lib/recurring/matching";
+import type { RecurringFrequency } from "@/lib/recurring/validation";
 
 export interface TransactionRowInput {
   merchant: string | null;
@@ -33,7 +39,41 @@ export async function insertTransactionRow(
   supabase: SupabaseClient,
   userId: string,
   input: TransactionRowInput
-): Promise<{ error?: string }> {
+): Promise<{
+  error?: string;
+  matchedRecurringExpenseId?: string;
+  matchedRecurringExpenseName?: string;
+}> {
+  // Recurring-expense matching (PRD §7/§10): only expenses can settle a
+  // recurring bill. Done before the insert so the match can be recorded on
+  // the row itself in the same write.
+  let match: RecurringMatchCandidate | null = null;
+  if (input.type === "expense") {
+    const { data: recurringExpenses } = await supabase
+      .from("recurring_expenses")
+      .select("id, name, amount, frequency, next_due_date, category_id")
+      .eq("user_id", userId)
+      .eq("active", true)
+      .order("next_due_date", { ascending: true });
+
+    const candidates: RecurringMatchCandidate[] = (recurringExpenses ?? []).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      amount: row.amount as number,
+      frequency: row.frequency as RecurringFrequency,
+      nextDueDate: row.next_due_date as string,
+      categoryId: row.category_id as number | null,
+    }));
+
+    match = findMatchingRecurringExpense(candidates, {
+      amountPaise: input.amountPaise,
+      date: input.date,
+      type: input.type,
+      merchant: input.merchant,
+      categoryId: input.categoryId,
+    });
+  }
+
   const { error } = await supabase.from("transactions").insert({
     user_id: userId,
     merchant: input.merchant,
@@ -46,10 +86,31 @@ export async function insertTransactionRow(
     type: input.type,
     notes: input.notes,
     source: input.source ?? "manual",
+    matched_recurring_expense_id: match?.id ?? null,
   });
 
   if (error) return { error: "Could not save this transaction. Please try again." };
-  return {};
+
+  if (match) {
+    const { error: advanceError } = await supabase
+      .from("recurring_expenses")
+      .update({
+        next_due_date: advancePastMatch(match, input.date),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", match.id)
+      .eq("user_id", userId);
+    // The transaction itself already saved successfully - don't fail the
+    // whole operation over this secondary update failing.
+    if (advanceError) {
+      console.error(
+        "[insertTransactionRow] failed to advance matched recurring expense:",
+        advanceError.message
+      );
+    }
+  }
+
+  return match ? { matchedRecurringExpenseId: match.id, matchedRecurringExpenseName: match.name } : {};
 }
 
 export interface TransactionRowUpdate {
@@ -152,7 +213,10 @@ export async function createTransaction(
     return { error: "Something went wrong. Please try again." };
   }
 
+  // A matched recurring expense may have just been advanced too.
   revalidatePath("/transactions");
+  revalidatePath("/recurring");
+  revalidatePath("/home");
   redirect("/transactions");
 }
 

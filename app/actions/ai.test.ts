@@ -153,6 +153,55 @@ describe("interpretMessage", () => {
     );
   });
 
+  it("mentions settling a recurring expense in the confirmation when one matches", async () => {
+    const { supabase, builders } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [{ data: { currency: "INR" }, error: null }],
+      transactions: [
+        { data: [], error: null }, // duplicate check: no match
+        { error: null }, // insert
+      ],
+      recurring_expenses: [
+        {
+          data: [
+            {
+              id: "rec-1",
+              name: "Netflix",
+              amount: 500_00,
+              frequency: "monthly",
+              next_due_date: "2026-09-16",
+              category_id: 1,
+            },
+          ],
+          error: null,
+        }, // candidate fetch
+        { error: null }, // advance the match
+      ],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(
+      llmResponse({
+        action: "add_transaction",
+        merchant: "Netflix",
+        amount: "500",
+        category: "Food & Dining",
+        date: "2026-09-14",
+        type: "expense",
+      })
+    );
+
+    const result = await interpretMessage("spent 500 on netflix", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toContain("This settles your upcoming Netflix payment.");
+    }
+    expect(builders.transactions[1].insert).toHaveBeenCalledWith(
+      expect.objectContaining({ matched_recurring_expense_id: "rec-1" })
+    );
+    expect(builders.recurring_expenses[1].update).toHaveBeenCalled();
+  });
+
   it("asks for the amount when it's missing, without touching the database", async () => {
     const { supabase, builders } = makeSupabase({
       categories: [{ data: categoriesRows, error: null }],
