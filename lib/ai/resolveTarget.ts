@@ -27,9 +27,17 @@ export interface TransactionCandidate {
   amount: number;
   transaction_date: string;
   type: string;
+  category_id: number | null;
+  payment_method: string | null;
+  account_info: string | null;
+  notes: string | null;
 }
 
-/** Resolves a natural-language transaction reference to a specific row (or none/multiple). */
+/**
+ * Resolves a natural-language transaction reference to a specific row (or
+ * none/multiple). Selects every column an edit handler needs so it can reuse
+ * the resolved row directly instead of re-fetching it by id afterwards.
+ */
 export async function resolveTransactionTarget(
   supabase: SupabaseClient,
   userId: string,
@@ -37,7 +45,7 @@ export async function resolveTransactionTarget(
 ): Promise<TargetResolution<TransactionCandidate>> {
   const { data, error } = await supabase
     .from("transactions")
-    .select("id, merchant, amount, transaction_date, type")
+    .select("id, merchant, amount, transaction_date, type, category_id, payment_method, account_info, notes")
     .eq("user_id", userId)
     .order("transaction_date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -78,9 +86,17 @@ export interface RecurringExpenseCandidate {
   amount: number;
   frequency: string;
   active: boolean;
+  next_due_date: string;
+  category_id: number | null;
+  payment_method: string | null;
+  account_info: string | null;
 }
 
-/** Resolves a natural-language recurring-expense reference to a specific row (or none/multiple). */
+/**
+ * Resolves a natural-language recurring-expense reference to a specific row
+ * (or none/multiple). Selects every column an edit handler needs so it can
+ * reuse the resolved row directly instead of re-fetching it by id afterwards.
+ */
 export async function resolveRecurringTarget(
   supabase: SupabaseClient,
   userId: string,
@@ -88,7 +104,7 @@ export async function resolveRecurringTarget(
 ): Promise<TargetResolution<RecurringExpenseCandidate>> {
   const { data, error } = await supabase
     .from("recurring_expenses")
-    .select("id, name, amount, frequency, active")
+    .select("id, name, amount, frequency, active, next_due_date, category_id, payment_method, account_info")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(CANDIDATE_FETCH_LIMIT);

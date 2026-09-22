@@ -18,9 +18,11 @@ function categoryName(category: RecentTransactionItem["category"]) {
 export function RecentTransactionsCard({
   transactions,
   currency,
+  hasError,
 }: {
   transactions: RecentTransactionItem[];
   currency: string;
+  hasError?: boolean;
 }) {
   return (
     <div className="card flex flex-col gap-3">
@@ -31,7 +33,9 @@ export function RecentTransactionsCard({
         </Link>
       </div>
 
-      {transactions.length === 0 ? (
+      {hasError ? (
+        <p className="error-text">Could not load your recent transactions. Please try again.</p>
+      ) : transactions.length === 0 ? (
         <p className="text-sm text-[var(--color-text-secondary)]">
           No transactions yet.{" "}
           <Link href="/transactions/new" className="font-medium text-[var(--color-primary)]">

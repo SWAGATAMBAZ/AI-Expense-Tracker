@@ -30,6 +30,7 @@ function makeBuilder(result: { data?: unknown; error?: unknown }) {
     builder[method] = vi.fn(() => builder);
   }
   builder.maybeSingle = vi.fn(async () => result);
+  builder.single = vi.fn(async () => result);
   builder.then = (resolve: (value: typeof result) => void) => resolve(result);
   return builder as unknown as {
     select: ReturnType<typeof vi.fn>;
@@ -40,6 +41,7 @@ function makeBuilder(result: { data?: unknown; error?: unknown }) {
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
     maybeSingle: ReturnType<typeof vi.fn>;
+    single: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -124,7 +126,7 @@ describe("interpretMessage", () => {
       profiles: [{ data: { currency: "INR" }, error: null }],
       transactions: [
         { data: [], error: null }, // duplicate check: no match
-        { error: null }, // insert
+        { data: { id: "txn-1" }, error: null }, // insert().select("id").single()
       ],
     });
     mockCreateClient.mockResolvedValue(supabase);
@@ -159,7 +161,7 @@ describe("interpretMessage", () => {
       profiles: [{ data: { currency: "INR" }, error: null }],
       transactions: [
         { data: [], error: null }, // duplicate check: no match
-        { error: null }, // insert
+        { data: { id: "txn-1" }, error: null }, // insert().select("id").single()
       ],
       recurring_expenses: [
         {
@@ -256,24 +258,23 @@ describe("interpretMessage", () => {
       profiles: [{ data: { currency: "INR" }, error: null }],
       transactions: [
         {
+          // resolveTransactionTarget now selects every column an edit needs,
+          // so there's no separate "fetch existing" round trip afterwards.
           data: [
-            { id: "txn-1", merchant: "Zomato", amount: 450_00, transaction_date: "2026-09-10", type: "expense" },
+            {
+              id: "txn-1",
+              merchant: "Zomato",
+              amount: 450_00,
+              transaction_date: "2026-09-10",
+              type: "expense",
+              category_id: 1,
+              payment_method: "UPI",
+              account_info: null,
+              notes: null,
+            },
           ],
           error: null,
-        }, // resolveTransactionTarget
-        {
-          data: {
-            merchant: "Zomato",
-            amount: 450_00,
-            category_id: 1,
-            transaction_date: "2026-09-10",
-            payment_method: "UPI",
-            account_info: null,
-            type: "expense",
-            notes: null,
-          },
-          error: null,
-        }, // fetch existing
+        },
         { data: { id: "txn-1" }, error: null }, // update
       ],
     });
@@ -289,7 +290,7 @@ describe("interpretMessage", () => {
     const result = await interpretMessage("actually that zomato one was 500 not 450", null);
 
     expect(result.kind).toBe("confirmation");
-    expect(builders.transactions[2].update).toHaveBeenCalledWith(
+    expect(builders.transactions[1].update).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 500_00, merchant: "Zomato", payment_method: "UPI" })
     );
   });
@@ -377,24 +378,23 @@ describe("interpretMessage", () => {
       profiles: [{ data: { currency: "INR" }, error: null }],
       recurring_expenses: [
         {
+          // resolveRecurringTarget now selects every column an edit needs,
+          // so there's no separate "fetch existing" round trip afterwards.
           data: [
-            { id: "rec-1", name: "Netflix", amount: 649_00, frequency: "monthly", active: true },
+            {
+              id: "rec-1",
+              name: "Netflix",
+              amount: 649_00,
+              frequency: "monthly",
+              active: true,
+              next_due_date: "2026-10-01",
+              category_id: 2,
+              payment_method: null,
+              account_info: null,
+            },
           ],
           error: null,
-        }, // resolveRecurringTarget
-        {
-          data: {
-            name: "Netflix",
-            amount: 649_00,
-            frequency: "monthly",
-            next_due_date: "2026-10-01",
-            category_id: 2,
-            payment_method: null,
-            account_info: null,
-            active: true,
-          },
-          error: null,
-        }, // fetch existing
+        },
         { data: { id: "rec-1" }, error: null }, // update
       ],
     });
@@ -414,7 +414,7 @@ describe("interpretMessage", () => {
       expect(result.text).toContain("Skipped this cycle for Netflix");
       expect(result.text).toContain("Nov");
     }
-    expect(builders.recurring_expenses[2].update).toHaveBeenCalledWith(
+    expect(builders.recurring_expenses[1].update).toHaveBeenCalledWith(
       expect.objectContaining({ next_due_date: "2026-11-01", amount: 649_00, name: "Netflix" })
     );
   });

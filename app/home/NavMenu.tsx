@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
 
-export function NavMenu() {
+export function NavMenu({ isDemoMode = false }: { isDemoMode?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -55,14 +55,19 @@ export function NavMenu() {
             >
               Profile
             </Link>
-            <form action={signOut} className="border-t border-[var(--color-border)] pt-1">
-              <button
-                type="submit"
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-danger)] hover:bg-[var(--color-surface-muted)]"
-              >
-                Sign out
-              </button>
-            </form>
+            {/* In demo mode, signing out would only bounce the visitor right
+                back into the shared demo account via the proxy - hide it
+                rather than offer an action that appears to do nothing. */}
+            {isDemoMode ? null : (
+              <form action={signOut} className="border-t border-[var(--color-border)] pt-1">
+                <button
+                  type="submit"
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-danger)] hover:bg-[var(--color-surface-muted)]"
+                >
+                  Sign out
+                </button>
+              </form>
+            )}
           </div>
         </>
       ) : null}

@@ -119,6 +119,20 @@ describe("computeCategoryBreakdown", () => {
       { categoryId: 2, categoryName: "Groceries", amount: 300_00, percentage: 100 },
     ]);
   });
+
+  it("never reports a percentage over 100% when another category is net over-refunded", () => {
+    const result = computeCategoryBreakdown(
+      [
+        { amount: 100_00, type: "expense", category_id: 1, payment_method: null },
+        { amount: 300_00, type: "refund", category_id: 1, payment_method: null },
+        { amount: 500_00, type: "expense", category_id: 2, payment_method: null },
+      ],
+      categories
+    );
+    expect(result).toEqual([
+      { categoryId: 2, categoryName: "Groceries", amount: 500_00, percentage: 100 },
+    ]);
+  });
 });
 
 describe("computePaymentMethodMix", () => {
@@ -140,6 +154,15 @@ describe("computePaymentMethodMix", () => {
       { amount: 150_00, type: "refund", category_id: null, payment_method: "UPI" },
     ]);
     expect(result).toEqual([{ method: "UPI", amount: 350_00, percentage: 100 }]);
+  });
+
+  it("never reports a percentage over 100% when another method is net over-refunded", () => {
+    const result = computePaymentMethodMix([
+      { amount: 100_00, type: "expense", category_id: null, payment_method: "UPI" },
+      { amount: 300_00, type: "refund", category_id: null, payment_method: "UPI" },
+      { amount: 500_00, type: "expense", category_id: null, payment_method: "Cash" },
+    ]);
+    expect(result).toEqual([{ method: "Cash", amount: 500_00, percentage: 100 }]);
   });
 });
 

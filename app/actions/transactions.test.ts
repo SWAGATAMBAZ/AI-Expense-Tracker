@@ -27,7 +27,11 @@ function makeQueryBuilder(result: { data?: unknown; error?: unknown }) {
   builder.eq = vi.fn(() => builder);
   builder.order = vi.fn(async () => result);
   builder.maybeSingle = vi.fn(async () => result);
-  builder.insert = vi.fn(async () => result);
+  // insertTransactionRow chains .insert(...).select("id").single() to get
+  // the new row's id back, so insert() must stay chainable rather than
+  // resolving immediately.
+  builder.insert = vi.fn(() => builder);
+  builder.single = vi.fn(async () => result);
   builder.update = vi.fn(() => builder);
   builder.delete = vi.fn(() => builder);
   builder.then = (resolve: (value: typeof result) => void) => resolve(result);
@@ -75,11 +79,19 @@ describe("createTransaction", () => {
   });
 
   it("inserts the transaction and redirects on success", async () => {
+    let transactionsCallCount = 0;
     fromImpl = (table: string) => {
       if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
       if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
       if (table === "recurring_expenses") return makeQueryBuilder({ data: [] });
-      if (table === "transactions") return makeQueryBuilder({ error: null });
+      if (table === "transactions") {
+        transactionsCallCount++;
+        // 1st call: findDuplicateTransaction's select (expects an array).
+        // 2nd call: insertTransactionRow's insert().select("id").single().
+        return transactionsCallCount === 1
+          ? makeQueryBuilder({ data: [], error: null })
+          : makeQueryBuilder({ data: { id: "txn-new" }, error: null });
+      }
       throw new Error(`unexpected table ${table}`);
     };
 
@@ -105,7 +117,7 @@ describe("createTransaction", () => {
             data: [{ id: "txn-existing", merchant: "Zomato", amount: 500_00, transaction_date: "2026-01-01" }],
           });
         }
-        transactionsInsertBuilder = makeQueryBuilder({ error: null });
+        transactionsInsertBuilder = makeQueryBuilder({ data: { id: "txn-new" }, error: null });
         return transactionsInsertBuilder;
       }
       throw new Error(`unexpected table ${table}`);
@@ -143,6 +155,7 @@ describe("createTransaction", () => {
     let transactionsInsertBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
     let recurringUpdateBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
     let recurringCallCount = 0;
+    let transactionsCallCount = 0;
 
     fromImpl = (table: string) => {
       if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
@@ -167,7 +180,11 @@ describe("createTransaction", () => {
         return recurringUpdateBuilder;
       }
       if (table === "transactions") {
-        transactionsInsertBuilder = makeQueryBuilder({ error: null });
+        transactionsCallCount++;
+        // 1st call: findDuplicateTransaction's select (expects an array).
+        // 2nd call: insertTransactionRow's insert().select("id").single().
+        if (transactionsCallCount === 1) return makeQueryBuilder({ data: [], error: null });
+        transactionsInsertBuilder = makeQueryBuilder({ data: { id: "txn-new" }, error: null });
         return transactionsInsertBuilder;
       }
       throw new Error(`unexpected table ${table}`);
@@ -183,9 +200,56 @@ describe("createTransaction", () => {
     );
   });
 
+  it("clears the recurring-expense match (without failing the request) when advancing the matched expense fails", async () => {
+    let transactionsCallCount = 0;
+    let cleanupUpdateBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
+
+    fromImpl = (table: string) => {
+      if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
+      if (table === "profiles") return makeQueryBuilder({ data: { currency: "INR" } });
+      if (table === "recurring_expenses") {
+        // Same builder serves both the candidate fetch (reads .data, which
+        // has the match) and the advance update (resolves with .error set).
+        return makeQueryBuilder({
+          data: [
+            {
+              id: "rec-1",
+              name: "Zomato Gold",
+              amount: 500_00,
+              frequency: "monthly",
+              next_due_date: "2026-01-03",
+              category_id: 1,
+            },
+          ],
+          error: { message: "advance failed" },
+        });
+      }
+      if (table === "transactions") {
+        transactionsCallCount++;
+        // 1st call: findDuplicateTransaction's select (expects an array).
+        // 2nd call: insertTransactionRow's insert().select("id").single().
+        // 3rd call: the best-effort cleanup update after the advance fails.
+        if (transactionsCallCount === 1) return makeQueryBuilder({ data: [], error: null });
+        if (transactionsCallCount === 2) {
+          return makeQueryBuilder({ data: { id: "txn-new" }, error: null });
+        }
+        cleanupUpdateBuilder = makeQueryBuilder({ error: null });
+        return cleanupUpdateBuilder;
+      }
+      throw new Error(`unexpected table ${table}`);
+    };
+
+    // The transaction itself still saves successfully - only the secondary
+    // advance step failed, so the request as a whole still succeeds.
+    await expect(createTransaction({}, validFormData())).rejects.toThrow("REDIRECT:/transactions");
+
+    expect(cleanupUpdateBuilder!.update).toHaveBeenCalledWith({ matched_recurring_expense_id: null });
+  });
+
   it("does not touch any recurring expense when nothing matches", async () => {
     let transactionsInsertBuilder: ReturnType<typeof makeQueryBuilder> | undefined;
     let recurringCallCount = 0;
+    let transactionsCallCount = 0;
 
     fromImpl = (table: string) => {
       if (table === "categories") return makeQueryBuilder({ data: categoriesRows });
@@ -206,7 +270,11 @@ describe("createTransaction", () => {
         });
       }
       if (table === "transactions") {
-        transactionsInsertBuilder = makeQueryBuilder({ error: null });
+        transactionsCallCount++;
+        // 1st call: findDuplicateTransaction's select (expects an array).
+        // 2nd call: insertTransactionRow's insert().select("id").single().
+        if (transactionsCallCount === 1) return makeQueryBuilder({ data: [], error: null });
+        transactionsInsertBuilder = makeQueryBuilder({ data: { id: "txn-new" }, error: null });
         return transactionsInsertBuilder;
       }
       throw new Error(`unexpected table ${table}`);
@@ -234,6 +302,8 @@ describe("updateTransaction", () => {
     );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions/txn-1");
+    // The dashboard's totals are derived from this row too.
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
   });
 
   it("returns 'no longer exists' when the row doesn't match (stale/foreign id)", async () => {
@@ -255,6 +325,8 @@ describe("deleteTransaction", () => {
     const result = await deleteTransaction("txn-1");
     expect(result).toEqual({});
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions");
+    // The dashboard's totals are derived from this row too.
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
   });
 
   it("returns 'no longer exists' when the row doesn't match", async () => {

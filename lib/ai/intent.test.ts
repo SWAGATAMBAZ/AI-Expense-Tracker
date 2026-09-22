@@ -137,4 +137,17 @@ describe("matchCategoryId", () => {
     expect(matchCategoryId(undefined, categories)).toBeNull();
     expect(matchCategoryId("", categories)).toBeNull();
   });
+
+  it("falls back to a one-way substring match for a close variant", () => {
+    expect(matchCategoryId("Grocery", categories)).toBe(2);
+    expect(matchCategoryId("Food", categories)).toBe(1);
+  });
+
+  it("does not guess when the substring match is ambiguous between categories", () => {
+    const ambiguous = [
+      { id: 1, name: "Food & Dining" },
+      { id: 2, name: "Food Delivery" },
+    ];
+    expect(matchCategoryId("Food", ambiguous)).toBeNull();
+  });
 });

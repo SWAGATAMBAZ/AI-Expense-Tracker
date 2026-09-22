@@ -166,7 +166,7 @@ export default async function HomePage({
 
       <div className="flex items-center justify-between">
         <DateRangeFilter active={filter} label={range.label} />
-        <NavMenu />
+        <NavMenu isDemoMode={Boolean(process.env.DEMO_USER_EMAIL)} />
       </div>
 
       {periodError ? (
@@ -201,6 +201,7 @@ export default async function HomePage({
       <RecentTransactionsCard
         transactions={(recentTransactions as unknown as RecentTransactionItem[]) ?? []}
         currency={currency}
+        hasError={Boolean(recentError)}
       />
     </main>
   );
