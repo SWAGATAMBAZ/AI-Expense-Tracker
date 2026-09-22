@@ -2,8 +2,16 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
-  reporter: "html",
+  // One shared user per suite, and tests within a file build on each other.
+  workers: 1,
+  fullyParallel: false,
+  // The real free-tier LLM is occasionally slow/flaky; one retry absorbs that.
+  retries: 1,
+  timeout: 120_000,
+  expect: { timeout: 15_000 },
+  reporter: [["list"], ["html", { open: "never" }]],
+  globalSetup: "./e2e/global-setup.ts",
+  globalTeardown: "./e2e/global-teardown.ts",
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
@@ -13,5 +21,6 @@ export default defineConfig({
     command: "npm run build && npm run start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
   },
 });

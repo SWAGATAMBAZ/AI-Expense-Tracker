@@ -40,7 +40,14 @@ export async function findDuplicateTransaction(
   if (!data || data.length === 0) return null;
 
   if (!candidate.merchant) {
-    return data[0] as DuplicateMatch;
+    // No merchant to disambiguate on - date+amount+type alone is too weak a
+    // signal to auto-flag as a duplicate (PRD §18: an unconfident match must
+    // not be auto-assumed), since two distinct merchant-less transactions
+    // (e.g. two cash purchases) can easily share it. Only treat it as a
+    // duplicate when there's exactly one other merchant-less row to compare
+    // against; multiple candidates are ambiguous, not confirmatory.
+    const merchantless = (data as DuplicateMatch[]).filter((row) => !row.merchant);
+    return merchantless.length === 1 ? merchantless[0] : null;
   }
 
   const merchantLower = candidate.merchant.trim().toLowerCase();

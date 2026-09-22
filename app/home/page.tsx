@@ -201,6 +201,7 @@ export default async function HomePage({
       <RecentTransactionsCard
         transactions={(recentTransactions as unknown as RecentTransactionItem[]) ?? []}
         currency={currency}
+        hasError={Boolean(recentError)}
       />
     </main>
   );

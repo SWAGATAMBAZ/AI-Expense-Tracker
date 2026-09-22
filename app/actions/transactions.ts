@@ -75,22 +75,26 @@ export async function insertTransactionRow(
     });
   }
 
-  const { error } = await supabase.from("transactions").insert({
-    user_id: userId,
-    merchant: input.merchant,
-    amount: input.amountPaise,
-    currency: input.currency,
-    category_id: input.categoryId,
-    transaction_date: input.date,
-    payment_method: input.paymentMethod,
-    account_info: input.accountInfo,
-    type: input.type,
-    notes: input.notes,
-    source: input.source ?? "manual",
-    matched_recurring_expense_id: match?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("transactions")
+    .insert({
+      user_id: userId,
+      merchant: input.merchant,
+      amount: input.amountPaise,
+      currency: input.currency,
+      category_id: input.categoryId,
+      transaction_date: input.date,
+      payment_method: input.paymentMethod,
+      account_info: input.accountInfo,
+      type: input.type,
+      notes: input.notes,
+      source: input.source ?? "manual",
+      matched_recurring_expense_id: match?.id ?? null,
+    })
+    .select("id")
+    .single();
 
-  if (error) return { error: "Could not save this transaction. Please try again." };
+  if (error || !inserted) return { error: "Could not save this transaction. Please try again." };
 
   if (match) {
     const { error: advanceError } = await supabase
@@ -102,12 +106,27 @@ export async function insertTransactionRow(
       .eq("id", match.id)
       .eq("user_id", userId);
     // The transaction itself already saved successfully - don't fail the
-    // whole operation over this secondary update failing.
+    // whole operation over this secondary update failing. But don't leave
+    // the transaction claiming it settled a bill that didn't actually
+    // advance (PRD §10: never double-count) - best-effort clear the link so
+    // the recurring expense stays correctly "upcoming" instead of silently
+    // stuck, and don't report a settlement that didn't happen.
     if (advanceError) {
       console.error(
         "[insertTransactionRow] failed to advance matched recurring expense:",
         advanceError.message
       );
+      const { error: cleanupError } = await supabase
+        .from("transactions")
+        .update({ matched_recurring_expense_id: null })
+        .eq("id", inserted.id as string);
+      if (cleanupError) {
+        console.error(
+          "[insertTransactionRow] cleanup after failed advance also failed:",
+          cleanupError.message
+        );
+      }
+      return {};
     }
   }
 

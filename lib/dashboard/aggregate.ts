@@ -35,8 +35,6 @@ export function computeCategoryBreakdown(
   transactions: TransactionForAggregate[],
   categories: { id: number; name: string }[]
 ): CategoryBreakdownItem[] {
-  const total = computeTotalSpend(transactions);
-
   const byCategory = new Map<number | null, number>();
   for (const t of spendRelevant(transactions)) {
     byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + signedAmount(t));
@@ -44,11 +42,19 @@ export function computeCategoryBreakdown(
 
   const nameById = new Map(categories.map((c) => [c.id, c.name]));
 
-  return Array.from(byCategory.entries())
+  const entries = Array.from(byCategory.entries())
     // A category fully offset by its own refunds (or over-refunded) contributes
     // nothing to display - never a negative slice.
     .map(([categoryId, netAmount]) => ({ categoryId, amount: Math.max(0, netAmount) }))
-    .filter((entry) => entry.amount > 0)
+    .filter((entry) => entry.amount > 0);
+
+  // Percentages are of the displayed (post-flooring) total, not the raw
+  // globally-netted computeTotalSpend() - otherwise a category that's net
+  // over-refunded (and so dropped from display above) would silently
+  // inflate every other category's percentage past 100%.
+  const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+
+  return entries
     .map(({ categoryId, amount }) => ({
       categoryId,
       categoryName: categoryId != null ? (nameById.get(categoryId) ?? "Uncategorized") : "Uncategorized",
@@ -67,17 +73,22 @@ export interface PaymentMethodMixItem {
 export function computePaymentMethodMix(
   transactions: TransactionForAggregate[]
 ): PaymentMethodMixItem[] {
-  const total = computeTotalSpend(transactions);
-
   const byMethod = new Map<string, number>();
   for (const t of spendRelevant(transactions)) {
     const method = t.payment_method?.trim() || "Unspecified";
     byMethod.set(method, (byMethod.get(method) ?? 0) + signedAmount(t));
   }
 
-  return Array.from(byMethod.entries())
+  const entries = Array.from(byMethod.entries())
     .map(([method, netAmount]) => ({ method, amount: Math.max(0, netAmount) }))
-    .filter((entry) => entry.amount > 0)
+    .filter((entry) => entry.amount > 0);
+
+  // Same reasoning as computeCategoryBreakdown: percentage against the
+  // displayed total, not the raw globally-netted one, so a payment method
+  // that's net over-refunded can't push the others past 100%.
+  const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+
+  return entries
     .map(({ method, amount }) => ({
       method,
       amount,

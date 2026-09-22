@@ -244,6 +244,11 @@ export function parseAiIntent(raw: unknown): ParseIntentResult {
   }
 }
 
+/** A crude English pluralization so e.g. "Grocery" can match stored "Groceries". */
+function pluralize(word: string): string {
+  return /[^aeiou]y$/.test(word) ? `${word.slice(0, -1)}ies` : `${word}s`;
+}
+
 /** Case-insensitive exact match of an LLM-provided category name against the real category list. */
 export function matchCategoryId(
   name: string | undefined,
@@ -252,6 +257,20 @@ export function matchCategoryId(
   if (!name) return null;
   const trimmed = name.trim().toLowerCase();
   if (!trimmed) return null;
-  const match = categories.find((c) => c.name.toLowerCase() === trimmed);
-  return match ? match.id : null;
+
+  const exact = categories.find((c) => c.name.toLowerCase() === trimmed);
+  if (exact) return exact.id;
+
+  // The LLM sometimes emits a close variant of the real category name (e.g.
+  // "Grocery" for "Groceries", "Food" for "Food & Dining") - fall back to a
+  // one-way substring match (plus a pluralized comparison, since a plural
+  // stored name is rarely a plain substring of its singular form), but only
+  // act on it when exactly one category qualifies. More than one candidate
+  // is ambiguous, not a match (PRD §18: don't guess).
+  const pluralizedTrimmed = pluralize(trimmed);
+  const loose = categories.filter((c) => {
+    const cName = c.name.toLowerCase();
+    return cName.includes(trimmed) || trimmed.includes(cName) || cName === pluralizedTrimmed;
+  });
+  return loose.length === 1 ? loose[0].id : null;
 }

@@ -17,8 +17,14 @@ import {
   validateMerchant,
   validatePaymentMethod,
   validateNotes,
+  type TransactionType,
 } from "@/lib/transactions/validation";
-import { validateName, validateFrequency, validateNextDueDate } from "@/lib/recurring/validation";
+import {
+  validateName,
+  validateFrequency,
+  validateNextDueDate,
+  type RecurringFrequency,
+} from "@/lib/recurring/validation";
 import { insertTransactionRow, updateTransactionRow, deleteTransaction } from "./transactions";
 import { insertRecurringExpenseRow, updateRecurringExpenseRow } from "./recurring";
 import { skipToNextOccurrence } from "@/lib/recurring/upcoming";
@@ -131,6 +137,9 @@ async function handleAddTransaction(
 
   const dateResult = intent.date ? validateTransactionDate(intent.date) : null;
   const date = dateResult?.ok ? dateResult.value : today();
+  // A date was given but rejected by validation - don't silently record it
+  // as today without saying so (the user stated a specific date).
+  const dateNote = intent.date && !dateResult?.ok ? ` (couldn't use the date you gave, so I used today.)` : "";
 
   const typeResult = intent.type ? validateTransactionType(intent.type) : null;
   const type = typeResult?.ok ? typeResult.value : "expense";
@@ -184,11 +193,18 @@ async function handleAddTransaction(
   const settleNote = matchedRecurringExpenseName
     ? ` This settles your upcoming ${matchedRecurringExpenseName} payment.`
     : "";
+  // A category was mentioned but didn't match any real category - say so
+  // rather than silently saving it uncategorized (PRD §18: don't guess, but
+  // also don't claim something happened that didn't).
+  const categoryNote =
+    intent.category && !categoryId
+      ? ` I couldn't match the category "${intent.category}", so I left it uncategorized.`
+      : "";
   return {
     kind: "confirmation",
     text: `Added ${formatAmount(amount.value, currency)} ${type}${merchant ? ` at ${merchant}` : ""}${
       categoryName ? ` — ${categoryName}` : ""
-    }.${settleNote}`,
+    }.${settleNote}${categoryNote}${dateNote}`,
     href: "/transactions",
   };
 }
@@ -219,15 +235,9 @@ async function handleEditTransaction(
   }
 
   const targetId = resolution.row.id;
-  const { data: existing, error: fetchError } = await supabase
-    .from("transactions")
-    .select("merchant, amount, category_id, transaction_date, payment_method, account_info, type, notes")
-    .eq("id", targetId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (fetchError || !existing) {
-    return { kind: "error", text: "Could not load that transaction. Please try again." };
-  }
+  // resolveTransactionTarget already selected every column needed below -
+  // no need for a second round trip to re-fetch the same row.
+  const existing = resolution.row;
 
   const changes = intent.changes;
   const amount =
@@ -248,7 +258,9 @@ async function handleEditTransaction(
     date: dateResult?.ok ? dateResult.value : existing.transaction_date,
     paymentMethod: paymentMethodResult?.ok ? paymentMethodResult.value : existing.payment_method,
     accountInfo: existing.account_info,
-    type: typeResult?.ok ? typeResult.value : existing.type,
+    // existing.type is a DB value already constrained to this union by a
+    // check constraint (supabase-js can't express that in its return type).
+    type: typeResult?.ok ? typeResult.value : (existing.type as TransactionType),
     notes: notesResult?.ok ? notesResult.value : existing.notes,
   });
   if (result.error) return { kind: "error", text: result.error };
@@ -257,9 +269,30 @@ async function handleEditTransaction(
   revalidatePath(`/transactions/${targetId}`);
   revalidatePath("/home");
 
+  // A change was requested for a field but rejected by validation (or, for
+  // category, matched nothing real) - each such field silently keeps its old
+  // value above, so say which ones didn't apply instead of confirming
+  // "Updated" as if everything requested went through (PRD §7 success
+  // criterion: correct AI mistakes easily, which requires knowing when a
+  // correction didn't actually apply).
+  const rejectedFields: string[] = [];
+  if (changes.amount !== undefined && !amount?.ok) rejectedFields.push("amount");
+  if (changes.date !== undefined && !dateResult?.ok) rejectedFields.push("date");
+  if (changes.type !== undefined && !typeResult?.ok) rejectedFields.push("type");
+  if (changes.merchant !== undefined && !merchantResult?.ok) rejectedFields.push("merchant");
+  if (changes.paymentMethod !== undefined && !paymentMethodResult?.ok)
+    rejectedFields.push("payment method");
+  if (changes.notes !== undefined && !notesResult?.ok) rejectedFields.push("notes");
+  if (changes.category !== undefined && newCategoryId === null) rejectedFields.push("category");
+  const changeNote =
+    rejectedFields.length > 0
+      ? ` I couldn't apply the ${rejectedFields.join(", ")} change${
+          rejectedFields.length > 1 ? "s" : ""
+        }, so ${rejectedFields.length > 1 ? "those stay" : "it stays"} unchanged.`
+      : "";
   return {
     kind: "confirmation",
-    text: `Updated the transaction${existing.merchant ? ` at ${existing.merchant}` : ""}.`,
+    text: `Updated the transaction${existing.merchant ? ` at ${existing.merchant}` : ""}.${changeNote}`,
     href: `/transactions/${targetId}`,
   };
 }
@@ -393,29 +426,23 @@ async function handleEditRecurringExpense(
   }
 
   const targetId = resolution.row.id;
-  const { data: existing, error: fetchError } = await supabase
-    .from("recurring_expenses")
-    .select("name, amount, frequency, next_due_date, category_id, payment_method, account_info, active")
-    .eq("id", targetId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (fetchError || !existing) {
-    return { kind: "error", text: "Could not load that recurring expense. Please try again." };
-  }
+  // resolveRecurringTarget already selected every column needed below - no
+  // need for a second round trip to re-fetch the same row.
+  const existing = resolution.row;
 
   const changes = intent.changes;
 
   // "skip" is a standalone action (PRD §19), not composable with other edits
   // in the same message.
   if (changes.skip) {
-    const nextDueDate = skipToNextOccurrence(
-      existing.next_due_date as string,
-      existing.frequency
-    );
+    // existing.frequency is a DB value already constrained to this union by
+    // a check constraint (supabase-js can't express that in its return type).
+    const existingFrequency = existing.frequency as RecurringFrequency;
+    const nextDueDate = skipToNextOccurrence(existing.next_due_date, existingFrequency);
     const result = await updateRecurringExpenseRow(supabase, targetId, userId, {
       name: existing.name,
       amountPaise: existing.amount,
-      frequency: existing.frequency,
+      frequency: existingFrequency,
       nextDueDate,
       categoryId: existing.category_id,
       paymentMethod: existing.payment_method,
@@ -446,7 +473,7 @@ async function handleEditRecurringExpense(
   const result = await updateRecurringExpenseRow(supabase, targetId, userId, {
     name: nameResult?.ok ? nameResult.value : existing.name,
     amountPaise: amountResult?.ok ? amountResult.value : existing.amount,
-    frequency: frequencyResult?.ok ? frequencyResult.value : existing.frequency,
+    frequency: frequencyResult?.ok ? frequencyResult.value : (existing.frequency as RecurringFrequency),
     nextDueDate: nextDueDateResult?.ok ? nextDueDateResult.value : existing.next_due_date,
     categoryId: newCategoryId ?? existing.category_id,
     paymentMethod: paymentMethodResult?.ok ? paymentMethodResult.value : existing.payment_method,
@@ -458,9 +485,23 @@ async function handleEditRecurringExpense(
   revalidatePath("/recurring");
   revalidatePath("/home");
 
+  const rejectedFields: string[] = [];
+  if (changes.name !== undefined && !nameResult?.ok) rejectedFields.push("name");
+  if (changes.amount !== undefined && !amountResult?.ok) rejectedFields.push("amount");
+  if (changes.frequency !== undefined && !frequencyResult?.ok) rejectedFields.push("frequency");
+  if (changes.nextDueDate !== undefined && !nextDueDateResult?.ok) rejectedFields.push("next due date");
+  if (changes.paymentMethod !== undefined && !paymentMethodResult?.ok)
+    rejectedFields.push("payment method");
+  if (changes.category !== undefined && newCategoryId === null) rejectedFields.push("category");
+  const changeNote =
+    rejectedFields.length > 0
+      ? ` I couldn't apply the ${rejectedFields.join(", ")} change${
+          rejectedFields.length > 1 ? "s" : ""
+        }, so ${rejectedFields.length > 1 ? "those stay" : "it stays"} unchanged.`
+      : "";
   return {
     kind: "confirmation",
-    text: `Updated ${existing.name}.`,
+    text: `Updated ${existing.name}.${changeNote}`,
     href: "/recurring",
   };
 }
