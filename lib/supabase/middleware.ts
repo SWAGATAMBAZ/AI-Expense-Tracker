@@ -36,14 +36,34 @@ export async function updateSession(request: NextRequest): Promise<SessionInfo> 
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    let effectiveUser = user;
+
+    // Public-demo prototype mode (not a supported auth model - see
+    // README/DEPLOY notes): when DEMO_USER_EMAIL/PASSWORD are set, every
+    // visitor with no session of their own is transparently signed into one
+    // shared demo account, so the deployed link needs no login screen and
+    // everyone sees/edits the same seeded data. Unset in normal deployments,
+    // in which case this is a no-op and auth works exactly as before.
+    if (!effectiveUser && process.env.DEMO_USER_EMAIL && process.env.DEMO_USER_PASSWORD) {
+      const { data: demoSignIn, error: demoError } = await supabase.auth.signInWithPassword({
+        email: process.env.DEMO_USER_EMAIL,
+        password: process.env.DEMO_USER_PASSWORD,
+      });
+      if (demoError) {
+        console.error("[proxy] demo auto sign-in failed:", demoError.message);
+      } else {
+        effectiveUser = demoSignIn.user;
+      }
+    }
+
+    if (!effectiveUser) {
       return { isAuthenticated: false, onboardingCompleted: false, response };
     }
 
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed")
-      .eq("id", user.id)
+      .eq("id", effectiveUser.id)
       .maybeSingle();
 
     return {
