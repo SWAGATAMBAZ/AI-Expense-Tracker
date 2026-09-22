@@ -302,6 +302,8 @@ describe("updateTransaction", () => {
     );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions/txn-1");
+    // The dashboard's totals are derived from this row too.
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
   });
 
   it("returns 'no longer exists' when the row doesn't match (stale/foreign id)", async () => {
@@ -323,6 +325,8 @@ describe("deleteTransaction", () => {
     const result = await deleteTransaction("txn-1");
     expect(result).toEqual({});
     expect(mockRevalidatePath).toHaveBeenCalledWith("/transactions");
+    // The dashboard's totals are derived from this row too.
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/home");
   });
 
   it("returns 'no longer exists' when the row doesn't match", async () => {

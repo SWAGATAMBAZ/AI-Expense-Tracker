@@ -5,8 +5,12 @@ export default defineConfig({
   // One shared user per suite, and tests within a file build on each other.
   workers: 1,
   fullyParallel: false,
-  // The real free-tier LLM is occasionally slow/flaky; one retry absorbs that.
-  retries: 1,
+  // No retries: golden-path.spec.ts is a stateful serial sequence sharing
+  // one demo user across tests, so a whole-file retry would replay steps
+  // against an already-mutated user (e.g. already onboarded) instead of a
+  // clean slate. Per-assertion timeouts below already absorb real LLM
+  // slowness; chat sends get an even longer explicit timeout.
+  retries: 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },
   reporter: [["list"], ["html", { open: "never" }]],
@@ -22,5 +26,7 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });

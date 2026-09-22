@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
     // Generated Serwist service worker build output — never hand-edited.
     "public/sw.js",
     "public/swe-worker*.js",
+    // Playwright's generated (gitignored) run artifacts — reports/traces
+    // bundle minified JS that isn't source code.
+    "playwright-report/**",
+    "test-results/**",
+    "/playwright/.cache/**",
   ]),
 ]);
 

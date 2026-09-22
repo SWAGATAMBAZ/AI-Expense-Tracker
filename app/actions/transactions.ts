@@ -289,6 +289,8 @@ export async function updateTransaction(
 
   revalidatePath("/transactions");
   revalidatePath(`/transactions/${id}`);
+  // The dashboard's totals/breakdowns are derived from this row too.
+  revalidatePath("/home");
   redirect(`/transactions/${id}`);
 }
 
@@ -317,5 +319,7 @@ export async function deleteTransaction(id: string): Promise<{ error?: string }>
   }
 
   revalidatePath("/transactions");
+  // The dashboard's totals/breakdowns are derived from this row too.
+  revalidatePath("/home");
   return {};
 }
