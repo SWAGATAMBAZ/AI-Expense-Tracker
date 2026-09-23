@@ -1,4 +1,4 @@
-# AI Expense Tracker
+# Spendify
 
 An AI-first, mobile-first expense tracker. See `PRD.md` for the product
 spec and `PLAN.md` for the phased execution plan.

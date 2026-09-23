@@ -6,7 +6,7 @@ describe("LandingPage", () => {
   it("renders the headline and both call-to-action links", () => {
     render(<LandingPage />);
     expect(
-      screen.getByRole("heading", { name: /ai expense tracker/i })
+      screen.getByRole("heading", { name: /spendify/i })
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
       "href",

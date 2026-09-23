@@ -4,7 +4,7 @@ export default function LandingPage() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">AI Expense Tracker</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Spendify</h1>
         <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
           Understand your spending, effortlessly — let AI categorize and track it for
           you.

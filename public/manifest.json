@@ -1,6 +1,6 @@
 {
-  "name": "AI Expense Tracker",
-  "short_name": "ExpenseTracker",
+  "name": "Spendify",
+  "short_name": "Spendify",
   "description": "Track your expenses and income with AI-assisted entry.",
   "start_url": "/",
   "display": "standalone",

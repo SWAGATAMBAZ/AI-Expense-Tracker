@@ -31,11 +31,14 @@
      on notched devices - used to pin fixed bars (e.g. the AI chat input)
      exactly above it, on every page, without hardcoding the value twice. */
   --bottom-nav-height: calc(81px + env(safe-area-inset-bottom));
-  /* A small, deliberate top gap (not the old py-6+py-8 double padding every
-     page used to stack) plus the notch/status-bar safe area, for a tighter
-     mobile layout without content sitting under a notch in standalone PWA
-     mode. */
-  --content-top-padding: calc(0.75rem + env(safe-area-inset-top));
+  /* Rendered height of app/components/TopHeader.tsx (56px) plus the
+     notch/status-bar safe area - used to keep page content (and the demo
+     banner) clear of the fixed brand header, on every page, without
+     hardcoding the value twice. */
+  --top-header-height: calc(56px + env(safe-area-inset-top));
+  /* Small breathing room between the header/banner and a page's own first
+     line of content. */
+  --content-gap: 0.75rem;
 }
 
 html,

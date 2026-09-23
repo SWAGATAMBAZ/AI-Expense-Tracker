@@ -17,24 +17,25 @@ export function PageShell({
   const pathname = usePathname();
   const isFullScreen = FULL_SCREEN_PATHS.has(pathname);
 
-  // Owned here (not rendered separately in layout.tsx) so its real height -
-  // it can wrap to 2 lines on a narrow phone - is included in the flex
-  // column's own layout math, not stacked on top of a hardcoded 100dvh and
-  // pushing the page past the viewport.
+  // Owned here (not rendered separately in layout.tsx) so its height is
+  // included in the flex column's own layout math, not stacked on top of a
+  // hardcoded 100dvh and pushing the page past the viewport. `truncate`
+  // (not letting it wrap) is deliberate - single line, thinner than the
+  // header above it, per the product ask.
   const banner = isDemoMode ? (
-    <p className="shrink-0 bg-[var(--color-primary)] px-4 py-1.5 text-center text-xs font-medium text-white">
-      Public demo — shared data, no login. Anyone with this link can add/edit/delete.
+    <p className="shrink-0 truncate bg-[var(--color-primary)] px-4 py-1 text-center text-[11px] font-medium text-white">
+      Public demo — shared data, no login
     </p>
   ) : null;
 
   if (isFullScreen) {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col overflow-hidden" style={{ height: "100dvh" }}>
+      <div
+        className="mx-auto flex w-full max-w-md flex-col overflow-hidden"
+        style={{ height: "100dvh", paddingTop: "var(--top-header-height)" }}
+      >
         {banner}
-        <div
-          className="flex min-h-0 flex-1 flex-col px-4"
-          style={{ paddingTop: "var(--content-top-padding)" }}
-        >
+        <div className="flex min-h-0 flex-1 flex-col px-4" style={{ paddingTop: "var(--content-gap)" }}>
           {children}
         </div>
       </div>
@@ -42,9 +43,12 @@ export function PageShell({
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
+    <div
+      className="mx-auto flex min-h-dvh w-full max-w-md flex-col"
+      style={{ paddingTop: "var(--top-header-height)" }}
+    >
       {banner}
-      <div className="flex flex-1 flex-col px-4 pb-24" style={{ paddingTop: "var(--content-top-padding)" }}>
+      <div className="flex flex-1 flex-col px-4 pb-24" style={{ paddingTop: "var(--content-gap)" }}>
         {children}
       </div>
     </div>
