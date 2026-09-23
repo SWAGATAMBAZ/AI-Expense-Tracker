@@ -64,7 +64,7 @@ export function DateRangeFilter({ active, label }: { active: Filter; label: stri
   }
 
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <button
         type="button"
         onClick={openPanel}
@@ -96,7 +96,7 @@ export function DateRangeFilter({ active, label }: { active: Filter; label: stri
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-10 cursor-default"
           />
-          <div className="absolute left-0 top-full z-20 mt-2 flex w-72 max-w-[85vw] flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
+          <div className="absolute right-0 top-full z-20 mt-2 flex w-72 max-w-[85vw] flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
             <ul className="flex flex-col gap-1">
               {DATE_RANGE_FILTERS.map((filter) => (
                 <li key={filter}>

@@ -159,11 +159,12 @@ export default async function HomePage({
   return (
     <main className="flex flex-1 flex-col gap-6 pb-8">
       <h1 className="sr-only">Dashboard</h1>
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        Welcome back, <span className="font-medium text-[var(--color-text-primary)]">{displayName}</span>.
-      </p>
-
-      <DateRangeFilter active={filter} label={range.label} />
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-sm text-[var(--color-text-secondary)]">
+          Welcome back, <span className="font-medium text-[var(--color-text-primary)]">{displayName}</span>.
+        </p>
+        <DateRangeFilter active={filter} label={range.label} />
+      </div>
 
       {periodError ? (
         <p className="error-text">Could not load your spending data. Please try again.</p>
