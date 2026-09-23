@@ -35,7 +35,18 @@ describe("ChatPanel", () => {
       expect(screen.getByText(/added ₹500 expense at zomato/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("link", { name: /view/i })).toHaveAttribute("href", "/transactions");
-    expect(mockInterpretMessage).toHaveBeenCalledWith("spent 500 at zomato", null);
+    expect(mockInterpretMessage).toHaveBeenCalledWith("spent 500 at zomato", null, undefined);
+  });
+
+  it("passes the active session id through to interpretMessage", async () => {
+    mockInterpretMessage.mockResolvedValue({ kind: "confirmation", text: "Added ₹500 expense." });
+    render(<ChatPanel sessionId="session-123" />);
+
+    sendMessage("spent 500 on lunch");
+
+    await waitFor(() => {
+      expect(mockInterpretMessage).toHaveBeenCalledWith("spent 500 on lunch", null, "session-123");
+    });
   });
 
   it("carries the pending intent into the next message after a clarifying question", async () => {
@@ -58,10 +69,14 @@ describe("ChatPanel", () => {
     sendMessage("500");
 
     await waitFor(() => {
-      expect(mockInterpretMessage).toHaveBeenLastCalledWith("500", {
-        intent: { action: "add_transaction", merchant: "Zomato" },
-        missingFields: ["amount"],
-      });
+      expect(mockInterpretMessage).toHaveBeenLastCalledWith(
+        "500",
+        {
+          intent: { action: "add_transaction", merchant: "Zomato" },
+          missingFields: ["amount"],
+        },
+        undefined
+      );
     });
   });
 

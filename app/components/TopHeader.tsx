@@ -16,6 +16,24 @@ export function TopHeader({ isDemoMode }: { isDemoMode: boolean }) {
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
       <div className="relative flex h-12 w-full max-w-md items-center justify-center px-4">
+        <div className="absolute left-4">
+          <Link
+            href="/inbox"
+            aria-label="Inbox"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <rect x="2" y="4" width="14" height="10" rx="1.6" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M2.5 4.8 9 10l6.5-5.2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+        </div>
         <Link href="/home" aria-label="Spendify home">
           <Image
             src="/brand/spendify-logo.png"

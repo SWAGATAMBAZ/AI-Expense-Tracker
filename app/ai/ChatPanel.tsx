@@ -15,7 +15,13 @@ const GREETING: ChatMessage = {
   text: 'Tell me about an expense (e.g. "Spent 500 on lunch"), or ask me to edit/delete a recent one, add a recurring expense, pay a card bill, or answer things like "How much have I spent on food?" or "Should I buy earphones for 3000?".',
 };
 
-export function ChatPanel({ initialMessages = [] }: { initialMessages?: ChatMessage[] }) {
+export function ChatPanel({
+  initialMessages = [],
+  sessionId,
+}: {
+  initialMessages?: ChatMessage[];
+  sessionId?: string | null;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>(
     initialMessages.length > 0 ? initialMessages : [GREETING]
   );
@@ -41,7 +47,7 @@ export function ChatPanel({ initialMessages = [] }: { initialMessages?: ChatMess
 
     startTransition(async () => {
       try {
-        const result = await interpretMessage(text, pendingIntent);
+        const result = await interpretMessage(text, pendingIntent, sessionId ?? undefined);
         if (result.kind === "clarify") {
           setPendingIntent(result.pending);
           setMessages((prev) => [...prev, { role: "assistant", text: result.text }]);

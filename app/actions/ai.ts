@@ -81,15 +81,92 @@ function candidateList(
     .join("; ");
 }
 
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
+export interface ChatMessageRecord {
+  role: "user" | "assistant";
+  text: string;
+  href?: string;
+}
+
 /**
- * Loads the persisted chat transcript for the current user (product ask:
- * "maintain chat history" across page loads, not just in-memory state).
- * Best-effort: a load failure degrades to an empty history rather than
- * blocking the page.
+ * The demo simplification the product ask calls for: the original,
+ * pre-sessions chat transcript is backfilled (see migration 0008) into a
+ * session named exactly this, and the AI page defaults to it every time it
+ * opens with no explicit session requested - not whichever session was last
+ * viewed.
  */
-export async function loadChatHistory(): Promise<
-  { role: "user" | "assistant"; text: string; href?: string }[]
-> {
+const FIRST_CHAT_TITLE = "First chat";
+
+/** Finds (or, for a brand new user with no chat history at all, lazily creates) the user's "First chat" session. */
+async function getOrCreateFirstChatSessionForUser(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<string | null> {
+  const { data: existing } = await supabase
+    .from("ai_chat_sessions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("title", FIRST_CHAT_TITLE)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const { data: created, error } = await supabase
+    .from("ai_chat_sessions")
+    .insert({ user_id: userId, title: FIRST_CHAT_TITLE })
+    .select("id")
+    .single();
+  if (error || !created) {
+    console.error("[getOrCreateFirstChatSessionForUser] failed:", error?.message);
+    return null;
+  }
+  return created.id as string;
+}
+
+/** Server Component-callable wrapper - resolves the current user's default session id. */
+export async function getOrCreateFirstChatSessionId(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  return getOrCreateFirstChatSessionForUser(supabase, user.id);
+}
+
+/** Lists the current user's chat sessions for the history drawer, most recently active first. */
+export async function loadChatSessions(): Promise<ChatSessionSummary[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("ai_chat_sessions")
+    .select("id, title, updated_at")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+  if (error) {
+    console.error("[loadChatSessions] supabase error:", error.message);
+    return [];
+  }
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    title: row.title as string,
+    updatedAt: row.updated_at as string,
+  }));
+}
+
+/**
+ * Loads one session's persisted transcript (product ask: "maintain chat
+ * history" across page loads, not just in-memory state). Best-effort: a
+ * load failure degrades to an empty history rather than blocking the page.
+ */
+export async function loadSessionMessages(sessionId: string): Promise<ChatMessageRecord[]> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -100,10 +177,11 @@ export async function loadChatHistory(): Promise<
     .from("ai_chat_messages")
     .select("role, content, href")
     .eq("user_id", user.id)
+    .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
-    .limit(100);
+    .limit(200);
   if (error) {
-    console.error("[loadChatHistory] supabase error:", error.message);
+    console.error("[loadSessionMessages] supabase error:", error.message);
     return [];
   }
   return (data ?? []).map((row) => ({
@@ -113,9 +191,51 @@ export async function loadChatHistory(): Promise<
   }));
 }
 
+/**
+ * Starts a new chat session (product ask: clicking an Inbox insight card
+ * "opens a new chat ... to discuss further"). `seedAssistantText`, when
+ * given, is inserted as the session's opening message so the conversation
+ * starts from that insight instead of the generic greeting - written
+ * directly, not through the LLM, so opening an insight never costs a
+ * request.
+ */
+export async function createChatSession(
+  title: string,
+  seedAssistantText?: string
+): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("ai_chat_sessions")
+    .insert({ user_id: user.id, title })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("[createChatSession] failed to create session:", error?.message);
+    return null;
+  }
+  const sessionId = data.id as string;
+
+  if (seedAssistantText) {
+    const { error: seedError } = await supabase
+      .from("ai_chat_messages")
+      .insert({ user_id: user.id, session_id: sessionId, role: "assistant", content: seedAssistantText });
+    if (seedError) {
+      console.error("[createChatSession] failed to seed opening message:", seedError.message);
+    }
+  }
+
+  return sessionId;
+}
+
 export async function interpretMessage(
   message: string,
-  pending: PendingIntent | null
+  pending: PendingIntent | null,
+  sessionId?: string
 ): Promise<InterpretResult> {
   const supabase = await createClient();
   const {
@@ -126,8 +246,11 @@ export async function interpretMessage(
   const result = await computeInterpretResult(supabase, user.id, message, pending);
 
   // Persist the exchange for chat history - best-effort, a save failure
-  // shouldn't break the reply the user already got.
-  const { error: saveError } = await supabase.from("ai_chat_messages").insert([
+  // shouldn't break the reply the user already got. Falls back to (and
+  // lazily creates, for a brand new user) "First chat" when the caller
+  // didn't pin a specific session.
+  const targetSessionId = sessionId ?? (await getOrCreateFirstChatSessionForUser(supabase, user.id));
+  const messageRows: Record<string, unknown>[] = [
     { user_id: user.id, role: "user", content: message },
     {
       user_id: user.id,
@@ -135,7 +258,20 @@ export async function interpretMessage(
       content: result.text,
       href: result.kind === "confirmation" ? (result.href ?? null) : null,
     },
-  ]);
+  ];
+  if (targetSessionId) {
+    for (const row of messageRows) row.session_id = targetSessionId;
+    // Bumps the session to the top of the history drawer's most-recent sort.
+    const { error: touchError } = await supabase
+      .from("ai_chat_sessions")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", targetSessionId);
+    if (touchError) {
+      console.error("[interpretMessage] failed to bump session updated_at:", touchError.message);
+    }
+  }
+
+  const { error: saveError } = await supabase.from("ai_chat_messages").insert(messageRows);
   if (saveError) {
     console.error("[interpretMessage] failed to save chat history:", saveError.message);
   }
