@@ -104,6 +104,65 @@ describe("parseAiIntent", () => {
     });
   });
 
+  it("parses a delete_recurring_expense intent", () => {
+    const result = parseAiIntent({
+      action: "delete_recurring_expense",
+      target: { name: "Netflix" },
+      confirmed: true,
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        action: "delete_recurring_expense",
+        target: { mostRecent: undefined, name: "Netflix" },
+        confirmed: true,
+      },
+    });
+  });
+
+  it("parses a pay_credit_card_bill intent", () => {
+    const result = parseAiIntent({ action: "pay_credit_card_bill", cardName: "HDFC" });
+    expect(result).toEqual({
+      ok: true,
+      value: { action: "pay_credit_card_bill", cardName: "HDFC", confirmed: undefined },
+    });
+  });
+
+  it("parses a query_spending intent with a category and period", () => {
+    const result = parseAiIntent({
+      action: "query_spending",
+      category: "Food & Dining",
+      period: "last_month",
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        action: "query_spending",
+        metric: undefined,
+        category: "Food & Dining",
+        paymentMethod: undefined,
+        period: "last_month",
+      },
+    });
+  });
+
+  it("drops an unrecognized metric/period on query_spending rather than passing it through", () => {
+    const result = parseAiIntent({ action: "query_spending", metric: "nonsense", period: "nonsense" });
+    expect(result.ok).toBe(true);
+    if (result.ok && result.value.action === "query_spending") {
+      expect(result.value.metric).toBeUndefined();
+      expect(result.value.period).toBeUndefined();
+    }
+  });
+
+  it("parses a purchase_advice intent", () => {
+    const result = parseAiIntent({ action: "purchase_advice", amount: "3000", item: "earphones" });
+    expect(result).toEqual({
+      ok: true,
+      value: { action: "purchase_advice", amount: "3000", item: "earphones" },
+    });
+  });
+
   it("rejects a missing action", () => {
     const result = parseAiIntent({ amount: "500" });
     expect(result.ok).toBe(false);

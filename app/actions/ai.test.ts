@@ -24,7 +24,18 @@ const categoriesRows = [
 
 /** A chainable, thenable query-builder stub that always resolves to `result`. */
 function makeBuilder(result: { data?: unknown; error?: unknown }) {
-  const chainMethods = ["select", "eq", "order", "limit", "insert", "update", "delete"] as const;
+  const chainMethods = [
+    "select",
+    "eq",
+    "gte",
+    "lte",
+    "order",
+    "limit",
+    "insert",
+    "update",
+    "delete",
+    "upsert",
+  ] as const;
   const builder: Record<string, unknown> = {};
   for (const method of chainMethods) {
     builder[method] = vi.fn(() => builder);
@@ -35,11 +46,14 @@ function makeBuilder(result: { data?: unknown; error?: unknown }) {
   return builder as unknown as {
     select: ReturnType<typeof vi.fn>;
     eq: ReturnType<typeof vi.fn>;
+    gte: ReturnType<typeof vi.fn>;
+    lte: ReturnType<typeof vi.fn>;
     order: ReturnType<typeof vi.fn>;
     limit: ReturnType<typeof vi.fn>;
     insert: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
     maybeSingle: ReturnType<typeof vi.fn>;
     single: ReturnType<typeof vi.fn>;
   };
@@ -417,5 +431,136 @@ describe("interpretMessage", () => {
     expect(builders.recurring_expenses[1].update).toHaveBeenCalledWith(
       expect.objectContaining({ next_due_date: "2026-11-01", amount: 649_00, name: "Netflix" })
     );
+  });
+
+  it("answers a category-filtered spending query", async () => {
+    const { supabase } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [{ data: { currency: "INR" }, error: null }],
+      transactions: [
+        {
+          data: [
+            { amount: 300_00, type: "expense", category_id: 1, payment_method: "UPI" },
+            { amount: 200_00, type: "expense", category_id: 2, payment_method: "Cash" },
+          ],
+          error: null,
+        },
+      ],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(
+      llmResponse({ action: "query_spending", category: "Food & Dining" })
+    );
+
+    const result = await interpretMessage("how much have I spent on food", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toContain("₹300.00");
+      expect(result.text).toContain("Food & Dining");
+    }
+  });
+
+  it("answers a savings query using the same math as the dashboard", async () => {
+    const { supabase } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [
+        { data: { currency: "INR" }, error: null }, // computeInterpretResult's own currency lookup
+        { data: { monthly_salary: 50_000_00 }, error: null }, // the savings forecast's own salary lookup
+      ],
+      transactions: [
+        { data: [{ amount: 10_000_00, type: "expense", category_id: 1, payment_method: "UPI" }], error: null },
+      ],
+      recurring_expenses: [{ data: [], error: null }],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(llmResponse({ action: "query_spending", metric: "savings" }));
+
+    const result = await interpretMessage("how much have I saved this month", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toContain("₹40,000.00");
+    }
+  });
+
+  it("gives a hard-no purchase verdict when the amount exceeds projected savings", async () => {
+    const { supabase } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [
+        { data: { currency: "INR" }, error: null },
+        { data: { monthly_salary: 10_000_00 }, error: null },
+      ],
+      transactions: [
+        { data: [{ amount: 8_000_00, type: "expense", category_id: 1, payment_method: "UPI" }], error: null },
+      ],
+      recurring_expenses: [{ data: [], error: null }],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(
+      llmResponse({ action: "purchase_advice", amount: "5000", item: "earphones" })
+    );
+
+    const result = await interpretMessage("should I buy earphones for 5000", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toMatch(/hard no/i);
+    }
+  });
+
+  it("pays a credit card bill once confirmed, and records the payment", async () => {
+    const { supabase } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [{ data: { currency: "INR" }, error: null }],
+      transactions: [
+        {
+          data: [{ amount: 4_500_00, type: "expense", category_id: 1, payment_method: "HDFC Credit Card" }],
+          error: null,
+        },
+      ],
+      credit_card_payments: [
+        { data: null, error: null }, // existing-payment check: none yet
+        { error: null }, // the upsert
+      ],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(
+      llmResponse({ action: "pay_credit_card_bill", cardName: "HDFC", confirmed: true })
+    );
+
+    const result = await interpretMessage("pay my hdfc card bill", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toMatch(/marked.*paid/i);
+      expect(result.text).toContain("₹4,500.00");
+    }
+  });
+
+  it("deletes a recurring expense once confirmed", async () => {
+    const { supabase } = makeSupabase({
+      categories: [{ data: categoriesRows, error: null }],
+      profiles: [{ data: { currency: "INR" }, error: null }],
+      recurring_expenses: [
+        {
+          data: [{ id: "rec-1", name: "Netflix", amount: 649_00, frequency: "monthly", active: true }],
+          error: null,
+        }, // resolveRecurringTarget
+        { data: { id: "rec-1" }, error: null }, // deleteRecurringExpense's delete().select().maybeSingle()
+      ],
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockCallOpenRouter.mockResolvedValue(
+      llmResponse({ action: "delete_recurring_expense", target: { name: "Netflix" }, confirmed: true })
+    );
+
+    const result = await interpretMessage("yes delete netflix", null);
+
+    expect(result.kind).toBe("confirmation");
+    if (result.kind === "confirmation") {
+      expect(result.text).toMatch(/deleted/i);
+      expect(result.text).toContain("Netflix");
+    }
   });
 });

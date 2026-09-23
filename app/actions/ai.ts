@@ -26,8 +26,28 @@ import {
   type RecurringFrequency,
 } from "@/lib/recurring/validation";
 import { insertTransactionRow, updateTransactionRow, deleteTransaction } from "./transactions";
-import { insertRecurringExpenseRow, updateRecurringExpenseRow } from "./recurring";
-import { skipToNextOccurrence } from "@/lib/recurring/upcoming";
+import {
+  insertRecurringExpenseRow,
+  updateRecurringExpenseRow,
+  deleteRecurringExpense,
+} from "./recurring";
+import { payCreditCardBill } from "./creditCards";
+import { skipToNextOccurrence, getUpcomingSpend } from "@/lib/recurring/upcoming";
+import { resolveDateRange } from "@/lib/dashboard/dateRanges";
+import {
+  computeSavingsForecast,
+  computeTotalSpend,
+  computeTotalIncome,
+  type SavingsForecastResult,
+  type TransactionForAggregate,
+} from "@/lib/dashboard/aggregate";
+import { computeCreditCardSummary, currentPeriodMonth } from "@/lib/creditCards/cards";
+import {
+  answerSpendQuery,
+  answerSavingsQuery,
+  answerUpcomingQuery,
+  computePurchaseAdvice,
+} from "@/lib/ai/queries";
 
 export interface PendingIntent {
   intent: AiIntent;
@@ -61,6 +81,38 @@ function candidateList(
     .join("; ");
 }
 
+/**
+ * Loads the persisted chat transcript for the current user (product ask:
+ * "maintain chat history" across page loads, not just in-memory state).
+ * Best-effort: a load failure degrades to an empty history rather than
+ * blocking the page.
+ */
+export async function loadChatHistory(): Promise<
+  { role: "user" | "assistant"; text: string; href?: string }[]
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("ai_chat_messages")
+    .select("role, content, href")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(100);
+  if (error) {
+    console.error("[loadChatHistory] supabase error:", error.message);
+    return [];
+  }
+  return (data ?? []).map((row) => ({
+    role: row.role as "user" | "assistant",
+    text: row.content as string,
+    href: (row.href as string | null) ?? undefined,
+  }));
+}
+
 export async function interpretMessage(
   message: string,
   pending: PendingIntent | null
@@ -71,9 +123,35 @@ export async function interpretMessage(
   } = await supabase.auth.getUser();
   if (!user) return { kind: "error", text: "Your session expired. Please log in again." };
 
+  const result = await computeInterpretResult(supabase, user.id, message, pending);
+
+  // Persist the exchange for chat history - best-effort, a save failure
+  // shouldn't break the reply the user already got.
+  const { error: saveError } = await supabase.from("ai_chat_messages").insert([
+    { user_id: user.id, role: "user", content: message },
+    {
+      user_id: user.id,
+      role: "assistant",
+      content: result.text,
+      href: result.kind === "confirmation" ? (result.href ?? null) : null,
+    },
+  ]);
+  if (saveError) {
+    console.error("[interpretMessage] failed to save chat history:", saveError.message);
+  }
+
+  return result;
+}
+
+async function computeInterpretResult(
+  supabase: SupabaseClient,
+  userId: string,
+  message: string,
+  pending: PendingIntent | null
+): Promise<InterpretResult> {
   const [categories, profileResult] = await Promise.all([
     getCategories(supabase),
-    supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("currency").eq("id", userId).maybeSingle(),
   ]);
   const currency = profileResult.data?.currency ?? "INR";
 
@@ -102,15 +180,23 @@ export async function interpretMessage(
 
   switch (intent.action) {
     case "add_transaction":
-      return handleAddTransaction(supabase, user.id, categories, currency, intent);
+      return handleAddTransaction(supabase, userId, categories, currency, intent);
     case "edit_transaction":
-      return handleEditTransaction(supabase, user.id, categories, currency, intent);
+      return handleEditTransaction(supabase, userId, categories, currency, intent);
     case "delete_transaction":
-      return handleDeleteTransaction(supabase, user.id, currency, intent);
+      return handleDeleteTransaction(supabase, userId, currency, intent);
     case "add_recurring_expense":
-      return handleAddRecurringExpense(supabase, user.id, categories, currency, intent);
+      return handleAddRecurringExpense(supabase, userId, categories, currency, intent);
     case "edit_recurring_expense":
-      return handleEditRecurringExpense(supabase, user.id, categories, currency, intent);
+      return handleEditRecurringExpense(supabase, userId, categories, currency, intent);
+    case "delete_recurring_expense":
+      return handleDeleteRecurringExpense(supabase, userId, currency, intent);
+    case "pay_credit_card_bill":
+      return handlePayCreditCardBill(supabase, userId, currency, intent);
+    case "query_spending":
+      return handleQuerySpending(supabase, userId, categories, currency, intent);
+    case "purchase_advice":
+      return handlePurchaseAdvice(supabase, userId, currency, intent);
     case "clarify":
       return { kind: "clarify", text: intent.question, pending: null };
     case "unknown":
@@ -504,4 +590,276 @@ async function handleEditRecurringExpense(
     text: `Updated ${existing.name}.${changeNote}`,
     href: "/recurring",
   };
+}
+
+async function handleDeleteRecurringExpense(
+  supabase: SupabaseClient,
+  userId: string,
+  currency: string,
+  intent: Extract<AiIntent, { action: "delete_recurring_expense" }>
+): Promise<InterpretResult> {
+  const resolution = await resolveRecurringTarget(supabase, userId, intent.target);
+
+  if (resolution.status === "none") {
+    return {
+      kind: "clarify",
+      text: "I couldn't find a matching recurring expense to delete — what's it called?",
+      pending: { intent, missingFields: ["target"] },
+    };
+  }
+  if (resolution.status === "multiple") {
+    return {
+      kind: "clarify",
+      text: `I found more than one match: ${candidateList(resolution.candidates, currency)}. Which one did you mean?`,
+      pending: { intent, missingFields: ["target"] },
+    };
+  }
+
+  const row = resolution.row;
+  if (!intent.confirmed) {
+    return {
+      kind: "clarify",
+      text: `Delete the recurring expense "${row.name}" (${formatAmount(row.amount, currency)}/${row.frequency})? Reply yes to confirm.`,
+      pending: { intent, missingFields: ["confirmation"] },
+    };
+  }
+
+  const result = await deleteRecurringExpense(row.id);
+  if (result.error) return { kind: "error", text: result.error };
+
+  revalidatePath("/recurring");
+  revalidatePath("/home");
+  return {
+    kind: "confirmation",
+    text: `Deleted the recurring expense "${row.name}".`,
+    href: "/recurring",
+  };
+}
+
+async function handlePayCreditCardBill(
+  supabase: SupabaseClient,
+  userId: string,
+  currency: string,
+  intent: Extract<AiIntent, { action: "pay_credit_card_bill" }>
+): Promise<InterpretResult> {
+  const todayStr = today();
+  const monthRange = resolveDateRange("month", {}, todayStr);
+  const periodMonth = currentPeriodMonth();
+
+  const { data: transactions, error: txError } = await supabase
+    .from("transactions")
+    .select("amount, type, category_id, payment_method")
+    .eq("user_id", userId)
+    .gte("transaction_date", monthRange.start)
+    .lte("transaction_date", monthRange.end);
+  if (txError) {
+    console.error("[handlePayCreditCardBill] supabase error:", txError.message);
+    return { kind: "error", text: "Could not load your card spending. Please try again." };
+  }
+
+  const cards = computeCreditCardSummary((transactions ?? []) as TransactionForAggregate[]);
+  if (cards.length === 0) {
+    return {
+      kind: "confirmation",
+      text: "You have no credit card spending this month to pay off.",
+      href: "/cards",
+    };
+  }
+
+  let card = cards[0];
+  if (intent.cardName) {
+    const needle = intent.cardName.trim().toLowerCase();
+    const matches = cards.filter((c) => c.cardName.toLowerCase().includes(needle));
+    if (matches.length === 0) {
+      return {
+        kind: "clarify",
+        text: `I couldn't find a card matching "${intent.cardName}" with spending this month. You have: ${cards
+          .map((c) => c.cardName)
+          .join(", ")}.`,
+        pending: null,
+      };
+    }
+    if (matches.length > 1) {
+      return {
+        kind: "clarify",
+        text: `Which card did you mean: ${matches.map((c) => c.cardName).join(", ")}?`,
+        pending: { intent, missingFields: ["cardName"] },
+      };
+    }
+    card = matches[0];
+  } else if (cards.length > 1) {
+    return {
+      kind: "clarify",
+      text: `Which card's bill do you want to pay: ${cards
+        .map((c) => `${c.cardName} (${formatAmount(c.amount, currency)})`)
+        .join(", ")}?`,
+      pending: { intent, missingFields: ["cardName"] },
+    };
+  }
+
+  const { data: existingPayment } = await supabase
+    .from("credit_card_payments")
+    .select("amount_paid, paid_at")
+    .eq("user_id", userId)
+    .eq("card_name", card.cardName)
+    .eq("period_month", periodMonth)
+    .maybeSingle();
+  if (existingPayment) {
+    return {
+      kind: "confirmation",
+      text: `${card.cardName} is already marked paid (${formatAmount(
+        existingPayment.amount_paid as number,
+        currency
+      )} on ${formatShortDate(String(existingPayment.paid_at).slice(0, 10))}).`,
+      href: "/cards",
+    };
+  }
+
+  if (!intent.confirmed) {
+    return {
+      kind: "clarify",
+      text: `Mark ${card.cardName}'s bill of ${formatAmount(card.amount, currency)} as paid? Reply yes to confirm.`,
+      pending: { intent: { ...intent, cardName: card.cardName }, missingFields: ["confirmation"] },
+    };
+  }
+
+  const result = await payCreditCardBill(card.cardName, periodMonth, card.amount);
+  if (result.error) return { kind: "error", text: result.error };
+
+  revalidatePath("/cards");
+  return {
+    kind: "confirmation",
+    text: `Marked ${card.cardName}'s bill (${formatAmount(card.amount, currency)}) as paid.`,
+    href: "/cards",
+  };
+}
+
+/**
+ * Mirrors app/home/page.tsx's own savings-forecast computation exactly
+ * (same salary + current-month spend + upcoming-within-month math) so the
+ * AI's answer can never disagree with what the dashboard shows.
+ */
+async function computeCurrentMonthSavingsForecast(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<SavingsForecastResult | null> {
+  const todayStr = today();
+  const monthRange = resolveDateRange("month", {}, todayStr);
+
+  const [{ data: profile }, { data: currentMonthTx }, { data: recurringExpenses }] = await Promise.all([
+    supabase.from("profiles").select("monthly_salary").eq("id", userId).maybeSingle(),
+    supabase
+      .from("transactions")
+      .select("amount, type, category_id, payment_method")
+      .eq("user_id", userId)
+      .gte("transaction_date", monthRange.start)
+      .lte("transaction_date", monthRange.end),
+    supabase
+      .from("recurring_expenses")
+      .select("id, name, amount, frequency, next_due_date, active")
+      .eq("user_id", userId)
+      .eq("active", true),
+  ]);
+
+  const currentMonthTransactions = (currentMonthTx ?? []) as TransactionForAggregate[];
+  const upcoming = getUpcomingSpend(
+    (recurringExpenses ?? []).map((r) => ({
+      id: r.id as string,
+      name: r.name as string,
+      amount: r.amount as number,
+      frequency: r.frequency as RecurringFrequency,
+      nextDueDate: r.next_due_date as string,
+      active: r.active as boolean,
+    })),
+    todayStr
+  );
+  const upcomingWithinCurrentMonth = upcoming.items
+    .filter((item) => item.nextOccurrence <= monthRange.end)
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  const monthlyIncome =
+    profile?.monthly_salary != null
+      ? profile.monthly_salary + computeTotalIncome(currentMonthTransactions)
+      : null;
+
+  return computeSavingsForecast(
+    monthlyIncome,
+    computeTotalSpend(currentMonthTransactions),
+    upcomingWithinCurrentMonth
+  );
+}
+
+async function handleQuerySpending(
+  supabase: SupabaseClient,
+  userId: string,
+  categories: Category[],
+  currency: string,
+  intent: Extract<AiIntent, { action: "query_spending" }>
+): Promise<InterpretResult> {
+  if (intent.metric === "savings") {
+    const forecast = await computeCurrentMonthSavingsForecast(supabase, userId);
+    return { kind: "confirmation", text: answerSavingsQuery(forecast, currency), href: "/home" };
+  }
+
+  if (intent.metric === "upcoming") {
+    const { data: recurringExpenses } = await supabase
+      .from("recurring_expenses")
+      .select("id, name, amount, frequency, next_due_date, active")
+      .eq("user_id", userId)
+      .eq("active", true);
+    const upcoming = getUpcomingSpend(
+      (recurringExpenses ?? []).map((r) => ({
+        id: r.id as string,
+        name: r.name as string,
+        amount: r.amount as number,
+        frequency: r.frequency as RecurringFrequency,
+        nextDueDate: r.next_due_date as string,
+        active: r.active as boolean,
+      })),
+      today()
+    );
+    return { kind: "confirmation", text: answerUpcomingQuery(upcoming, currency), href: "/recurring" };
+  }
+
+  const period = intent.period ?? "month";
+  const range = period === "all_time" ? null : resolveDateRange(period, {}, today());
+
+  let txQuery = supabase
+    .from("transactions")
+    .select("amount, type, category_id, payment_method")
+    .eq("user_id", userId);
+  if (range) txQuery = txQuery.gte("transaction_date", range.start).lte("transaction_date", range.end);
+  const { data: transactions, error: txError } = await txQuery;
+  if (txError) {
+    console.error("[handleQuerySpending] supabase error:", txError.message);
+    return { kind: "error", text: "Could not load your transactions. Please try again." };
+  }
+
+  const answer = answerSpendQuery(
+    (transactions ?? []) as TransactionForAggregate[],
+    categories,
+    intent,
+    currency
+  );
+  return { kind: "confirmation", text: answer, href: "/transactions" };
+}
+
+async function handlePurchaseAdvice(
+  supabase: SupabaseClient,
+  userId: string,
+  currency: string,
+  intent: Extract<AiIntent, { action: "purchase_advice" }>
+): Promise<InterpretResult> {
+  const amount = parseAmountToPaise(intent.amount ?? "");
+  if (!amount.ok) {
+    return {
+      kind: "clarify",
+      text: "How much does it cost?",
+      pending: { intent, missingFields: ["amount"] },
+    };
+  }
+
+  const forecast = await computeCurrentMonthSavingsForecast(supabase, userId);
+  const advice = computePurchaseAdvice(amount.value, intent.item ?? null, forecast, currency);
+  return { kind: "confirmation", text: advice.message, href: "/home" };
 }

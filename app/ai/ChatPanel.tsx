@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { interpretMessage, type PendingIntent } from "@/app/actions/ai";
 
@@ -12,14 +12,24 @@ interface ChatMessage {
 
 const GREETING: ChatMessage = {
   role: "assistant",
-  text: 'Tell me about an expense — e.g. "Spent 500 on lunch" — or ask me to edit/delete a recent one, or add a recurring expense.',
+  text: 'Tell me about an expense (e.g. "Spent 500 on lunch"), or ask me to edit/delete a recent one, add a recurring expense, pay a card bill, or answer things like "How much have I spent on food?" or "Should I buy earphones for 3000?".',
 };
 
-export function ChatPanel() {
-  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
+export function ChatPanel({ initialMessages = [] }: { initialMessages?: ChatMessage[] }) {
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    initialMessages.length > 0 ? initialMessages : [GREETING]
+  );
   const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
+  const messageListRef = useRef<HTMLDivElement>(null);
+
+  // Jump to the latest message on load (persisted history can be long) and
+  // after every new message, rather than showing the oldest history first.
+  useEffect(() => {
+    const el = messageListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, isPending]);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -55,6 +65,7 @@ export function ChatPanel() {
   return (
     <div className="flex flex-col gap-3">
       <div
+        ref={messageListRef}
         className="flex flex-col gap-2 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
         style={{ maxHeight: 420 }}
       >

@@ -4,6 +4,10 @@ export const AI_INTENT_ACTIONS = [
   "delete_transaction",
   "add_recurring_expense",
   "edit_recurring_expense",
+  "delete_recurring_expense",
+  "pay_credit_card_bill",
+  "query_spending",
+  "purchase_advice",
   "clarify",
   "unknown",
 ] as const;
@@ -77,6 +81,33 @@ export interface EditRecurringExpenseIntent {
   changes: RecurringExpenseChanges;
 }
 
+export interface DeleteRecurringExpenseIntent {
+  action: "delete_recurring_expense";
+  target: { mostRecent?: boolean; name?: string };
+  confirmed?: boolean;
+}
+
+export interface PayCreditCardBillIntent {
+  action: "pay_credit_card_bill";
+  cardName?: string;
+  confirmed?: boolean;
+}
+
+/** metric defaults to "spend" and period to "this_month" when omitted - see intent.ts's parser. */
+export interface QuerySpendingIntent {
+  action: "query_spending";
+  metric?: "spend" | "income" | "savings" | "upcoming" | "top_category";
+  category?: string;
+  paymentMethod?: string;
+  period?: "today" | "week" | "month" | "last_month" | "all_time";
+}
+
+export interface PurchaseAdviceIntent {
+  action: "purchase_advice";
+  amount?: string;
+  item?: string;
+}
+
 export interface ClarifyIntent {
   action: "clarify";
   question: string;
@@ -92,6 +123,10 @@ export type AiIntent =
   | DeleteTransactionIntent
   | AddRecurringExpenseIntent
   | EditRecurringExpenseIntent
+  | DeleteRecurringExpenseIntent
+  | PayCreditCardBillIntent
+  | QuerySpendingIntent
+  | PurchaseAdviceIntent
   | ClarifyIntent
   | UnknownIntent;
 
@@ -228,6 +263,61 @@ export function parseAiIntent(raw: unknown): ParseIntentResult {
         },
       };
     }
+
+    case "delete_recurring_expense": {
+      const targetRaw =
+        obj.target && typeof obj.target === "object" ? (obj.target as Record<string, unknown>) : {};
+      return {
+        ok: true,
+        value: {
+          action: "delete_recurring_expense",
+          target: {
+            mostRecent: asOptionalBool(targetRaw.mostRecent),
+            name: asOptionalString(targetRaw.name),
+          },
+          confirmed: asOptionalBool(obj.confirmed),
+        },
+      };
+    }
+
+    case "pay_credit_card_bill":
+      return {
+        ok: true,
+        value: {
+          action: "pay_credit_card_bill",
+          cardName: asOptionalString(obj.cardName),
+          confirmed: asOptionalBool(obj.confirmed),
+        },
+      };
+
+    case "query_spending": {
+      const metric = asOptionalString(obj.metric);
+      const period = asOptionalString(obj.period);
+      const validMetrics = ["spend", "income", "savings", "upcoming", "top_category"];
+      const validPeriods = ["today", "week", "month", "last_month", "all_time"];
+      return {
+        ok: true,
+        value: {
+          action: "query_spending",
+          metric: (validMetrics.includes(metric ?? "") ? metric : undefined) as
+            | QuerySpendingIntent["metric"],
+          category: asOptionalString(obj.category),
+          paymentMethod: asOptionalString(obj.paymentMethod),
+          period: (validPeriods.includes(period ?? "") ? period : undefined) as
+            | QuerySpendingIntent["period"],
+        },
+      };
+    }
+
+    case "purchase_advice":
+      return {
+        ok: true,
+        value: {
+          action: "purchase_advice",
+          amount: asOptionalString(obj.amount),
+          item: asOptionalString(obj.item),
+        },
+      };
 
     case "clarify":
       return {
