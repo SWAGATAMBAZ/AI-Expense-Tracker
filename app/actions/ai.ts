@@ -86,7 +86,7 @@ export async function interpretMessage(
       currency,
     })
   );
-  if (!llmResult.ok) return { kind: "error", text: `${UNAVAILABLE_MESSAGE} [DIAG: ${llmResult.error}]` };
+  if (!llmResult.ok) return { kind: "error", text: UNAVAILABLE_MESSAGE };
 
   let raw: unknown;
   try {
