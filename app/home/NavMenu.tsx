@@ -49,6 +49,13 @@ export function NavMenu({ isDemoMode = false }: { isDemoMode?: boolean }) {
               Recurring expenses
             </Link>
             <Link
+              href="/cards"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
+            >
+              Credit cards
+            </Link>
+            <Link
               href="/profile"
               onClick={() => setOpen(false)}
               className="rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"

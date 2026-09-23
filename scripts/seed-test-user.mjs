@@ -178,13 +178,17 @@ async function seed() {
   const currentMonthTransactions = [
     { merchant: "Zomato", amount: 450_00, category: "Food & Dining", method: "UPI", day: 3, type: "expense" },
     { merchant: "Swiggy", amount: 380_00, category: "Food & Dining", method: "UPI", day: 10, type: "expense" },
-    { merchant: "BigBasket", amount: 2_200_00, category: "Groceries", method: "Credit Card", day: 5, type: "expense" },
+    // Split across two named cards (Credit Cards tab) instead of a generic
+    // "Credit Card" - HDFC totals 4,500 and HSBC totals 6,500 this month,
+    // matching the illustrative numbers from the product ask.
+    { merchant: "BigBasket", amount: 2_200_00, category: "Groceries", method: "HDFC Credit Card", day: 5, type: "expense" },
     { merchant: "Uber", amount: 320_00, category: "Transportation", method: "UPI", day: 7, type: "expense" },
     { merchant: "HP Petrol Pump", amount: 1_500_00, category: "Transportation", method: "Cash", day: 12, type: "expense" },
-    { merchant: "BookMyShow", amount: 600_00, category: "Entertainment", method: "Credit Card", day: 14, type: "expense" },
-    { merchant: "State Electricity Board", amount: 1_800_00, category: "Bills & Utilities", method: "Credit Card", day: 2, type: "expense" },
-    { merchant: "Airtel Broadband", amount: 999_00, category: "Bills & Utilities", method: "Credit Card", day: 2, type: "expense" },
-    { merchant: "Amazon", amount: 2_500_00, category: "Shopping", method: "Credit Card", day: 15, type: "expense" },
+    { merchant: "BookMyShow", amount: 500_00, category: "Entertainment", method: "HDFC Credit Card", day: 14, type: "expense" },
+    { merchant: "State Electricity Board", amount: 1_800_00, category: "Bills & Utilities", method: "HDFC Credit Card", day: 2, type: "expense" },
+    { merchant: "Airtel Broadband", amount: 999_00, category: "Bills & Utilities", method: "HSBC Credit Card", day: 2, type: "expense" },
+    { merchant: "Amazon", amount: 4_000_00, category: "Shopping", method: "HSBC Credit Card", day: 15, type: "expense" },
+    { merchant: "Decathlon", amount: 1_501_00, category: "Shopping", method: "HSBC Credit Card", day: 17, type: "expense" },
     { merchant: "Zomato refund", amount: 150_00, category: "Food & Dining", method: "UPI", day: 11, type: "refund" },
     { merchant: "Employer", amount: 60_000_00, category: null, method: "Bank Transfer", day: 1, type: "income" },
     { merchant: "Own savings account", amount: 5_000_00, category: null, method: "Bank Transfer", day: 6, type: "transfer" },

@@ -40,6 +40,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/cards",
+    label: "Credit cards",
+    icon: (
+      <>
+        <rect x="2" y="4" width="14" height="10" rx="1.6" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M2 7.5h14" stroke="currentColor" strokeWidth="1.6" />
+      </>
+    ),
+  },
+  {
     href: "/profile",
     label: "Account",
     icon: (
@@ -59,11 +69,12 @@ export function BottomNav() {
 
   if (isHidden(pathname)) return null;
 
-  const [transactions, recurring, account] = NAV_ITEMS;
+  const [transactions, recurring, cards, account] = NAV_ITEMS;
   const transactionsActive =
     pathname === transactions.href ||
     (pathname.startsWith(`${transactions.href}/`) && pathname !== "/transactions/new");
   const recurringActive = pathname === "/recurring" || pathname.startsWith("/recurring/");
+  const cardsActive = pathname === cards.href;
 
   return (
     <nav
@@ -91,6 +102,7 @@ export function BottomNav() {
           item={{ href: "/transactions/new", label: "Add expense", icon: <PlusIcon /> }}
           active={pathname === "/transactions/new"}
         />
+        <NavButton item={cards} active={cardsActive} />
         <NavButton item={account} active={pathname === account.href} />
       </div>
     </nav>

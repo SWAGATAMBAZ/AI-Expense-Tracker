@@ -4,7 +4,7 @@ import { adminClient, e2eUser } from "./support/users";
 
 // Security pass: with the *anon* key and user B's JWT, user A's data must be
 // unreachable and immutable (PLAN §5 "confirm RLS actually blocks cross-user access").
-test("RLS blocks cross-user access to profiles, transactions and recurring expenses", async () => {
+test("RLS blocks cross-user access to profiles, transactions, recurring expenses and credit card payments", async () => {
   const a = e2eUser("a");
   const b = e2eUser("b");
   const admin = adminClient();
@@ -35,6 +35,17 @@ test("RLS blocks cross-user access to profiles, transactions and recurring expen
     .select("id")
     .single();
   expect(aRecErr).toBeNull();
+  const { data: aPayment, error: aPaymentErr } = await admin
+    .from("credit_card_payments")
+    .insert({
+      user_id: a.id,
+      card_name: "RLS-secret-card",
+      period_month: "2026-01",
+      amount_paid: 5000,
+    })
+    .select("id")
+    .single();
+  expect(aPaymentErr).toBeNull();
 
   const asB = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,6 +63,8 @@ test("RLS blocks cross-user access to profiles, transactions and recurring expen
   expect(txRead.data).toEqual([]);
   const recRead = await asB.from("recurring_expenses").select("id").eq("id", aRec!.id);
   expect(recRead.data).toEqual([]);
+  const paymentRead = await asB.from("credit_card_payments").select("id").eq("id", aPayment!.id);
+  expect(paymentRead.data).toEqual([]);
   const profileRead = await asB.from("profiles").select("id").eq("id", a.id);
   expect(profileRead.data).toEqual([]);
 
@@ -60,6 +73,8 @@ test("RLS blocks cross-user access to profiles, transactions and recurring expen
   await asB.from("transactions").delete().eq("id", aTx!.id);
   await asB.from("recurring_expenses").update({ amount: 1 }).eq("id", aRec!.id);
   await asB.from("recurring_expenses").delete().eq("id", aRec!.id);
+  await asB.from("credit_card_payments").update({ amount_paid: 1 }).eq("id", aPayment!.id);
+  await asB.from("credit_card_payments").delete().eq("id", aPayment!.id);
   await asB.from("profiles").update({ monthly_salary: 1 }).eq("id", a.id);
 
   const forged = await asB.from("transactions").insert({
@@ -77,6 +92,13 @@ test("RLS blocks cross-user access to profiles, transactions and recurring expen
     next_due_date: "2026-12-01",
   });
   expect(forgedRec.error).not.toBeNull();
+  const forgedPayment = await asB.from("credit_card_payments").insert({
+    user_id: a.id,
+    card_name: "forged",
+    period_month: "2026-01",
+    amount_paid: 100,
+  });
+  expect(forgedPayment.error).not.toBeNull();
 
   // Ground truth via service role: A's data is untouched.
   const { data: txAfter } = await admin.from("transactions").select("amount").eq("id", aTx!.id).single();
@@ -87,6 +109,12 @@ test("RLS blocks cross-user access to profiles, transactions and recurring expen
     .eq("id", aRec!.id)
     .single();
   expect(recAfter?.amount).toBe(4500);
+  const { data: paymentAfter } = await admin
+    .from("credit_card_payments")
+    .select("amount_paid")
+    .eq("id", aPayment!.id)
+    .single();
+  expect(paymentAfter?.amount_paid).toBe(5000);
   const { data: profileAfter } = await admin
     .from("profiles")
     .select("monthly_salary")

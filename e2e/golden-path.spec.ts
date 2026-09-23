@@ -107,7 +107,11 @@ test("a transaction can be corrected and savings follow", async ({ page }) => {
 
   await page.goto("/transactions");
   await page.locator("ul li.card a").first().click();
-  await page.getByRole("link", { name: /edit/i }).first().click();
+  // Exact match, not a loose /edit/i substring: the app-wide bottom nav's
+  // "Credit cards" link contains "edit" (cr-EDIT-cards) and would otherwise
+  // also match, and BottomNav can be present in the DOM before this page's
+  // own "Edit" link finishes mounting, making .first() pick the wrong one.
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
   await page.getByLabel("Amount").fill(String(LUNCH_CORRECTED));
   await page.getByRole("button", { name: "Save changes" }).click();
   // Wait for the save to actually land (its server-action fetch is
@@ -133,4 +137,30 @@ test("deleting the transaction restores savings", async ({ page }) => {
 
   await page.goto("/home");
   await expect(card(page, "Total savings")).toContainText(amountPattern(SALARY - RECURRING));
+});
+
+const CARD_SPEND = 1200;
+
+test("a credit card transaction shows on the Credit Cards tab and can be marked paid", async ({
+  page,
+}) => {
+  await login(page, e2eUser("a"));
+
+  await page.goto("/transactions/new");
+  await page.getByLabel("Merchant").fill("Amazon");
+  await page.getByLabel("Amount").fill(String(CARD_SPEND));
+  await page.getByLabel("Category").selectOption({ label: "Shopping" });
+  await page.getByLabel("Payment method").fill("HDFC Credit Card");
+  await page.getByRole("button", { name: /add|save/i }).last().click();
+  // Content, not page.url() - see the comment on the login() helper above.
+  await expect(page.getByText(amountPattern(CARD_SPEND))).toBeVisible();
+
+  await page.goto("/cards");
+  await expect(card(page, "Total credit spend")).toContainText(amountPattern(CARD_SPEND));
+  // "HDFC Credit Card" legitimately appears twice (the card tile and the
+  // per-transaction tag below it) - just confirm it shows up at all.
+  await expect(page.getByText("HDFC Credit Card").first()).toBeVisible();
+
+  await page.getByRole("button", { name: /pay bill/i }).click();
+  await expect(page.getByText(/^Paid/)).toBeVisible();
 });
