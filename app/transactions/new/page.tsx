@@ -16,7 +16,7 @@ export default async function NewTransactionPage() {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-8">
+    <main className="flex flex-1 flex-col gap-6 pb-8">
       <h1 className="text-2xl font-semibold tracking-tight">Add transaction</h1>
 
       <TransactionForm

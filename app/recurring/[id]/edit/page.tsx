@@ -31,7 +31,7 @@ export default async function EditRecurringExpensePage({
   if (error) {
     console.error("[EditRecurringExpensePage] failed to load recurring expense:", error);
     return (
-      <main className="flex flex-1 flex-col gap-6 py-8">
+      <main className="flex flex-1 flex-col gap-6 pb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Edit recurring expense</h1>
         <p className="error-text">Could not load this recurring expense. Please try again.</p>
         <Link href="/recurring" className="text-sm font-medium text-[var(--color-text-secondary)]">
@@ -43,7 +43,7 @@ export default async function EditRecurringExpensePage({
   if (!recurringExpense) notFound();
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-8">
+    <main className="flex flex-1 flex-col gap-6 pb-8">
       <h1 className="text-2xl font-semibold tracking-tight">Edit recurring expense</h1>
 
       <RecurringExpenseForm

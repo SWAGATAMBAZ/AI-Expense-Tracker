@@ -28,7 +28,7 @@ export default async function TransactionDetailPage({
 
   if (error) {
     return (
-      <main className="flex flex-1 flex-col gap-6 py-8">
+      <main className="flex flex-1 flex-col gap-6 pb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Transaction detail</h1>
         <p className="error-text">Could not load this transaction. Please try again.</p>
         <Link href="/transactions" className="text-sm font-medium text-[var(--color-text-secondary)]">
@@ -60,7 +60,7 @@ export default async function TransactionDetailPage({
   ];
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-8">
+    <main className="flex flex-1 flex-col gap-6 pb-8">
       <h1 className="text-2xl font-semibold tracking-tight">Transaction detail</h1>
 
       <dl className="card flex flex-col gap-3">

@@ -65,7 +65,7 @@ export default async function RecurringExpensesPage() {
     });
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-8">
+    <main className="flex flex-1 flex-col gap-6 pb-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Recurring expenses</h1>
         <Link href="/recurring/new" className="text-sm font-medium text-[var(--color-primary)]">

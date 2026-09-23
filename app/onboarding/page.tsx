@@ -13,7 +13,7 @@ export default function OnboardingPage() {
   const fieldErrors = state.fieldErrors ?? {};
 
   return (
-    <main className="flex flex-1 flex-col justify-center gap-6 py-8">
+    <main className="flex flex-1 flex-col justify-center gap-6 pb-8">
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Let&apos;s set up your finances</h1>
         <p className="mt-1 text-sm text-[var(--color-text-secondary)]">

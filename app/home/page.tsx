@@ -158,7 +158,7 @@ export default async function HomePage({
   );
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-8">
+    <main className="flex flex-1 flex-col gap-6 pb-8">
       <h1 className="sr-only">Dashboard</h1>
       <p className="text-sm text-[var(--color-text-secondary)]">
         Welcome back, <span className="font-medium text-[var(--color-text-primary)]">{displayName}</span>.

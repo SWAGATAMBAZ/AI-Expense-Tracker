@@ -75,7 +75,7 @@ export default async function CreditCardsPage() {
     .sort((a, b) => b.transaction_date.localeCompare(a.transaction_date));
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-8">
+    <main className="flex flex-1 flex-col gap-6 pb-8">
       <h1 className="text-2xl font-semibold tracking-tight">Credit cards</h1>
 
       <div className="card flex flex-col gap-1">

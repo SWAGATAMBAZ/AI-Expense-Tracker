@@ -63,11 +63,14 @@ export function ChatPanel({ initialMessages = [] }: { initialMessages?: ChatMess
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    // min-h-0: lets this actually shrink to fit the remaining space in
+    // page.tsx's bounded column (PageShell makes /ai's outer container
+    // exactly viewport-height with no scroll of its own) instead of
+    // growing past it and causing a second, outer scrollbar.
+    <div className="flex min-h-0 flex-1 flex-col">
       <div
         ref={messageListRef}
-        className="flex flex-col gap-2 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
-        style={{ maxHeight: 420 }}
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
       >
         {messages.map((message, index) => (
           <div
@@ -144,8 +147,11 @@ export function ChatPanel({ initialMessages = [] }: { initialMessages?: ChatMess
         </form>
       </div>
       {/* Spacer reserving the space the now-fixed input bar no longer takes
-          in normal flow, so it doesn't hide whatever comes after ChatPanel. */}
-      <div aria-hidden style={{ height: "76px" }} />
+          in normal flow, so it doesn't hide whatever comes after ChatPanel.
+          shrink-0: a flex child shrinks by default, which would let this
+          get squeezed thinner than the input bar it's meant to reserve
+          room for on a very short viewport. */}
+      <div aria-hidden className="shrink-0" style={{ height: "76px" }} />
     </div>
   );
 }
