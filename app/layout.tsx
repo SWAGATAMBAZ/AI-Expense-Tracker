@@ -37,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-dvh bg-[var(--color-surface-muted)] font-sans text-[var(--color-text-primary)] antialiased">
-        <TopHeader />
+        <TopHeader isDemoMode={isDemoMode} />
         <PageShell isDemoMode={isDemoMode}>{children}</PageShell>
         <BottomNav />
       </body>

@@ -17,7 +17,6 @@ import {
   type DateRangeFilter as Filter,
 } from "@/lib/dashboard/dateRanges";
 import { DateRangeFilter } from "./DateRangeFilter";
-import { NavMenu } from "./NavMenu";
 import { SpendSummaryCard } from "./SpendSummaryCard";
 import { TopCategoriesCard } from "./TopCategoriesCard";
 import { TotalSavingsCard } from "./TotalSavingsCard";
@@ -164,10 +163,7 @@ export default async function HomePage({
         Welcome back, <span className="font-medium text-[var(--color-text-primary)]">{displayName}</span>.
       </p>
 
-      <div className="flex items-center justify-between">
-        <DateRangeFilter active={filter} label={range.label} />
-        <NavMenu isDemoMode={Boolean(process.env.DEMO_USER_EMAIL)} />
-      </div>
+      <DateRangeFilter active={filter} label={range.label} />
 
       {periodError ? (
         <p className="error-text">Could not load your spending data. Please try again.</p>

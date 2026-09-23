@@ -31,11 +31,11 @@
      on notched devices - used to pin fixed bars (e.g. the AI chat input)
      exactly above it, on every page, without hardcoding the value twice. */
   --bottom-nav-height: calc(81px + env(safe-area-inset-bottom));
-  /* Rendered height of app/components/TopHeader.tsx (56px) plus the
+  /* Rendered height of app/components/TopHeader.tsx (48px) plus the
      notch/status-bar safe area - used to keep page content (and the demo
      banner) clear of the fixed brand header, on every page, without
      hardcoding the value twice. */
-  --top-header-height: calc(56px + env(safe-area-inset-top));
+  --top-header-height: calc(48px + env(safe-area-inset-top));
   /* Small breathing room between the header/banner and a page's own first
      line of content. */
   --content-gap: 0.75rem;
