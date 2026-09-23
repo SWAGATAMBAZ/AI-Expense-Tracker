@@ -183,7 +183,7 @@ export default async function HomePage({
           <div className="grid grid-cols-2 gap-4">
             <TopCategoriesCard items={categoryBreakdown} />
             {savingsUnavailable ? (
-              <div className="card flex flex-col gap-2">
+              <div className="card flex min-w-0 flex-col gap-2">
                 <span className="text-sm text-[var(--color-text-secondary)]">Total savings</span>
                 <span className="error-text">Could not load. Try again.</span>
               </div>

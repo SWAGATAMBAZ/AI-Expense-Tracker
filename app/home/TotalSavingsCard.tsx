@@ -11,7 +11,7 @@ export function TotalSavingsCard({
 }) {
   if (forecast === null) {
     return (
-      <div className="card flex flex-col gap-2">
+      <div className="card flex min-w-0 flex-col gap-2">
         <span className="card-label">Total savings</span>
         <Link href="/profile" className="text-sm font-medium text-[var(--color-primary)]">
           Set up salary
@@ -21,7 +21,7 @@ export function TotalSavingsCard({
   }
 
   return (
-    <div className="card flex flex-col gap-1 border-[color-mix(in_srgb,var(--color-accent)_25%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent)_6%,white)]">
+    <div className="card flex min-w-0 flex-col gap-1 border-[color-mix(in_srgb,var(--color-accent)_25%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent)_6%,white)]">
       <span className="card-label">Total savings</span>
       <span className="stat-figure text-[var(--color-accent)]">
         {formatAmount(forecast.amount, currency)}

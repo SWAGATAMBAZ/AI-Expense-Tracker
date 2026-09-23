@@ -5,7 +5,7 @@ export function TopCategoriesCard({ items }: { items: CategoryBreakdownItem[] })
   const top = items.slice(0, 2);
 
   return (
-    <div className="card flex flex-col gap-2">
+    <div className="card flex min-w-0 flex-col gap-2">
       <span className="card-label">Top categories</span>
       {top.length === 0 ? (
         <span className="text-sm text-[var(--color-text-muted)]">No spending yet</span>

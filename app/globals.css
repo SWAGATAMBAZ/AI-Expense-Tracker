@@ -75,5 +75,12 @@ body {
 }
 
 .stat-figure {
-  @apply text-3xl font-bold tracking-tight tabular-nums;
+  /* text-2xl (not text-3xl) as the base size, plus break-words: a large
+     amount in a 2-column grid card can be wider than its column on a
+     narrow phone (a plain currency string has no spaces to wrap on), and
+     grid items don't shrink below their content's width by default - see
+     min-w-0 on each stat card's own root. Together these keep the number
+     inside its card (wrapping to a second line in extreme cases) instead
+     of forcing the whole page wider than the viewport. */
+  @apply text-xl font-bold tracking-tight tabular-nums break-words;
 }
