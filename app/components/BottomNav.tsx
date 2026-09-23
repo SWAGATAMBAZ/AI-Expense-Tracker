@@ -49,19 +49,6 @@ const NAV_ITEMS = [
       </>
     ),
   },
-  {
-    href: "/profile",
-    label: "Account",
-    icon: (
-      <path
-        d="M9 9.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3.5 15c.7-2.8 3-4.5 5.5-4.5s4.8 1.7 5.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
-  },
 ] as const;
 
 export function BottomNav() {
@@ -69,7 +56,7 @@ export function BottomNav() {
 
   if (isHidden(pathname)) return null;
 
-  const [transactions, recurring, cards, account] = NAV_ITEMS;
+  const [transactions, recurring, cards] = NAV_ITEMS;
   const transactionsActive =
     pathname === transactions.href ||
     (pathname.startsWith(`${transactions.href}/`) && pathname !== "/transactions/new");
@@ -90,10 +77,23 @@ export function BottomNav() {
           aria-label="AI feature"
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-md"
         >
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          {/* A main sparkle plus two smaller accent sparkles - the common
+              "AI/magic" glyph (as in Gemini/Notion AI), rather than a single
+              plain diamond. */}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
-              d="M11 2.5l1.8 4.9 4.9 1.8-4.9 1.8-1.8 4.9-1.8-4.9-4.9-1.8 4.9-1.8L11 2.5z"
+              d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"
               fill="currentColor"
+            />
+            <path
+              d="M18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"
+              fill="currentColor"
+              opacity="0.85"
+            />
+            <path
+              d="M16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+              fill="currentColor"
+              opacity="0.85"
             />
           </svg>
         </Link>
@@ -103,7 +103,6 @@ export function BottomNav() {
           active={pathname === "/transactions/new"}
         />
         <NavButton item={cards} active={cardsActive} />
-        <NavButton item={account} active={pathname === account.href} />
       </div>
     </nav>
   );

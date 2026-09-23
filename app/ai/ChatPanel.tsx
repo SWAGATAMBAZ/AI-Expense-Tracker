@@ -90,12 +90,30 @@ export function ChatPanel() {
 
       {/* Fixed above the app-wide bottom nav (see --bottom-nav-height) so the
           input/send row stays reachable regardless of message-list length or
-          on-screen keyboard, instead of scrolling with the page. */}
+          on-screen keyboard, instead of scrolling with the page. "Back home"
+          lives in this same docked row (not in normal page flow below it) -
+          there's no free space between this bar and the bottom nav for a
+          separate link to sit in without one covering the other. */}
       <div
         className="fixed inset-x-0 z-20 flex justify-center border-t border-[var(--color-border)] bg-[var(--color-surface)]"
         style={{ bottom: "var(--bottom-nav-height)" }}
       >
-        <form onSubmit={handleSubmit} className="flex w-full max-w-md gap-2 px-4 py-3">
+        <form onSubmit={handleSubmit} className="flex w-full max-w-md items-center gap-2 px-4 py-3">
+          <Link
+            href="/home"
+            aria-label="Back home"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text-secondary)]"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M10 3.5 5 8l5 4.5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
           <input
             type="text"
             value={input}
@@ -115,8 +133,7 @@ export function ChatPanel() {
         </form>
       </div>
       {/* Spacer reserving the space the now-fixed input bar no longer takes
-          in normal flow, so later page content (e.g. the "Back home" link)
-          isn't hidden underneath it. */}
+          in normal flow, so it doesn't hide whatever comes after ChatPanel. */}
       <div aria-hidden style={{ height: "76px" }} />
     </div>
   );

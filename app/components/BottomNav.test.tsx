@@ -26,7 +26,14 @@ describe("BottomNav", () => {
       "href",
       "/transactions/new"
     );
-    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("link", { name: /credit cards/i })).toHaveAttribute("href", "/cards");
+  });
+
+  it("no longer shows an Account link - reachable via the home page's own menu instead", () => {
+    pathname = "/home";
+    render(<BottomNav />);
+
+    expect(screen.queryByRole("link", { name: /^account$/i })).not.toBeInTheDocument();
   });
 
   it("is a persistent app-wide nav: also shown on form/detail sub-pages", () => {

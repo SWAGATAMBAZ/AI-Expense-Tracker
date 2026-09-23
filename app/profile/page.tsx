@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
@@ -38,6 +39,10 @@ export default async function ProfilePage() {
           Sign out
         </button>
       </form>
+
+      <Link href="/home" className="text-sm font-medium text-[var(--color-text-secondary)]">
+        &larr; Back home
+      </Link>
     </main>
   );
 }
